@@ -41,6 +41,12 @@ function makeItem() {
 }
 
 function fmt(n) { return "$" + (Number(n) || 0).toFixed(2); }
+function businessNameSize(name) {
+  const len = (name || "Your Business Name").length;
+  if (len > 28) return 12;
+  if (len > 18) return 14;
+  return 16;
+}
 function todayStr() {
   const d = new Date();
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -292,7 +298,7 @@ function ExpenseReportInner() {
           boxShadow: "0 10px 40px rgba(0,0,0,0.5)", transition: "width 0.2s ease, background 0.2s ease",
         }}>
           <div style={{ textAlign: "center", marginBottom: 14 }}>
-            <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 2px", letterSpacing: 0.5 }}>{profile.name || "Your Business Name"}</p>
+            <p style={{ fontSize: businessNameSize(profile.name), fontWeight: 700, margin: "0 0 2px", letterSpacing: 0.3, wordBreak: "break-word", lineHeight: 1.3 }}>{profile.name || "Your Business Name"}</p>
             {profile.address && <p style={{ fontSize: 10.5, color: sub, margin: "0 0 2px" }}>{profile.address}</p>}
             {profile.contact && <p style={{ fontSize: 10.5, color: sub, margin: 0 }}>{profile.contact}</p>}
           </div>
