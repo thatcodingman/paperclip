@@ -139,3 +139,43 @@ export function DocumentQR() {
   if (!dataUrl) return null;
   return <img src={dataUrl} alt="getpapyri.com" style={{ width: 34, height: 34, opacity: 0.6 }} />;
 }
+
+export const CURRENCIES = {
+  USD: { symbol: "$", label: "USD" },
+  EUR: { symbol: "€", label: "EUR" },
+  GBP: { symbol: "£", label: "GBP" },
+  CAD: { symbol: "CA$", label: "CAD" },
+  AUD: { symbol: "AU$", label: "AUD" },
+  JPY: { symbol: "¥", label: "JPY" },
+  INR: { symbol: "₹", label: "INR" },
+};
+export function fmtCurrency(n, currencyCode) {
+  const c = CURRENCIES[currencyCode] || CURRENCIES.USD;
+  return c.symbol + (Number(n) || 0).toFixed(2);
+}
+
+// Recently generated document history — shared across every tool, keyed by
+// document type so each tool only sees its own past entries. Stores the
+// full form state so "Load" can restore it exactly, not just show a summary.
+const HISTORY_KEY = "papyri-history-v1";
+const HISTORY_LIMIT_PER_KIND = 8;
+
+export function saveToHistory(kind, docNo, summary, state) {
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    const entry = { id: Math.random().toString(36).slice(2), kind: kind, docNo: docNo, summary: summary, state: state, savedAt: Date.now() };
+    const sameKind = list.filter(function (e) { return e.kind === kind; });
+    const otherKinds = list.filter(function (e) { return e.kind !== kind; });
+    const nextSameKind = [entry].concat(sameKind).slice(0, HISTORY_LIMIT_PER_KIND);
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextSameKind.concat(otherKinds)));
+  } catch (e) {}
+}
+
+export function loadHistory(kind) {
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return list.filter(function (e) { return e.kind === kind; });
+  } catch (e) { return []; }
+}

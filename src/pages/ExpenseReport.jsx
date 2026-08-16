@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
-import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR } from "../components/PaperclipChrome";
+import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -23,7 +23,7 @@ function loadProfile() {
 }
 function loadAppearance() {
   try { const raw = window.localStorage.getItem(APPEARANCE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-  return { size: "standard", tone: "cream", uiLight: false };
+  return { size: "standard", tone: "cream", uiLight: false, currency: "USD" };
 }
 function saveAppearance(val) {
   try { window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(val)); } catch (e) {}
@@ -40,7 +40,6 @@ function makeItem() {
   return { id: Math.random().toString(36).slice(2), desc: "", category: "Travel", amount: "" };
 }
 
-function fmt(n) { return "$" + (Number(n) || 0).toFixed(2); }
 function businessNameSize(name) {
   const len = (name || "Your Business Name").length;
   if (len > 28) return 12;
@@ -91,10 +90,11 @@ function ExpenseReportInner() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [items, setItems] = useState([makeItem(), makeItem()]);
-  const [reportNo] = useState(function () { return nextDocNumber("expense", "EXP-"); });
+  const [reportNo, setReportNo] = useState(function () { return nextDocNumber("expense", "EXP-"); });
   const [date] = useState(todayStr);
   const [appearance, setAppearance] = useState(loadAppearance);
   const [showAppearance, setShowAppearance] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
@@ -102,6 +102,7 @@ function ExpenseReportInner() {
 
   const tone = PAPER_TONES[appearance.tone];
   const size = SIZES[appearance.size];
+  const currency = appearance.currency || "USD";
 
   function updateItem(id, field, value) {
     setItems(function (prev) { return prev.map(function (it) { return it.id === id ? Object.assign({}, it, { [field]: value }) : it; }); });
@@ -158,7 +159,22 @@ function ExpenseReportInner() {
     setAppearance(merged);
     saveAppearance(merged);
   }
-  function handlePrint() { window.print(); }
+  function handlePrint() {
+    saveToHistory("expense", reportNo, (submitter || "Untitled") + " — " + fmtCurrency(grandTotal, currency), {
+      submitter: submitter, dateFrom: dateFrom, dateTo: dateTo, items: items,
+    });
+    window.print();
+  }
+  function loadHistoryEntry(entry) {
+    const s = entry.state;
+    setSubmitter(s.submitter || "");
+    setDateFrom(s.dateFrom || "");
+    setDateTo(s.dateTo || "");
+    setItems(s.items && s.items.length ? s.items : [makeItem(), makeItem()]);
+    setReportNo(entry.docNo);
+    setShowHistory(false);
+  }
+  const historyEntries = showHistory ? loadHistory("expense") : [];
 
   return (
     <PaperclipBackdrop>
@@ -175,15 +191,44 @@ function ExpenseReportInner() {
           <p style={{ ...fontMono, fontSize: 20, fontWeight: 700, color: "#F5F2E8", letterSpacing: 0.5, margin: 0 }}>
             PAPYRI
           </p>
-          <button onClick={function () { setShowAppearance(!showAppearance); }} aria-label="Appearance settings" style={{
-            background: showAppearance ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
-            color: "#8A8A8A", padding: "6px 8px", cursor: "pointer" }}>
-            <Settings size={13} />
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={function () { setShowHistory(!showHistory); setShowAppearance(false); }} aria-label="Recent history" style={{
+              background: showHistory ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
+              color: "#8A8A8A", padding: "6px 8px", cursor: "pointer" }}>
+              <History size={13} />
+            </button>
+            <button onClick={function () { setShowAppearance(!showAppearance); setShowHistory(false); }} aria-label="Appearance settings" style={{
+              background: showAppearance ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
+              color: "#8A8A8A", padding: "6px 8px", cursor: "pointer" }}>
+              <Settings size={13} />
+            </button>
+          </div>
         </div>
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
           itemized expenses, grouped and totaled automatically
         </p>
+
+        {showHistory && (
+          <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 8px", letterSpacing: 0.5 }}>RECENTLY GENERATED</p>
+            {historyEntries.length === 0 ? (
+              <p style={{ fontSize: 11, color: "#666", margin: 0, ...fontMono }}>Nothing yet — print a report to save it here.</p>
+            ) : historyEntries.map(function (entry) {
+              return (
+                <button key={entry.id} onClick={function () { loadHistoryEntry(entry); }} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+                  background: "#0A0A0A", border: "1px solid #2A2A2A", borderRadius: 3, padding: "8px 10px",
+                  marginBottom: 6, cursor: "pointer", textAlign: "left" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 11, color: "#F5F2E8", margin: 0, ...fontMono, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.summary}</p>
+                    <p style={{ fontSize: 9.5, color: "#666", margin: "2px 0 0", ...fontMono }}>{entry.docNo}</p>
+                  </div>
+                  <RotateCcw size={12} color="#8A8A8A" style={{ flexShrink: 0, marginLeft: 8 }} />
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {showAppearance && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -201,7 +246,7 @@ function ExpenseReportInner() {
               })}
             </div>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>PAPER TONE</p>
-            <div style={{ display: "flex", gap: 5 }}>
+            <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
               {Object.entries(PAPER_TONES).map(function (entry) {
                 const key = entry[0]; const t = entry[1];
                 const active = appearance.tone === key;
@@ -217,7 +262,15 @@ function ExpenseReportInner() {
                 );
               })}
             </div>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "12px 0 6px", letterSpacing: 0.5 }}>EDITING UI</p>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>CURRENCY</p>
+            <select value={currency} onChange={function (e) { applyAppearance({ currency: e.target.value }); }} style={{
+              width: "100%", background: "#0A0A0A", border: "1px solid #333", borderRadius: 3, color: "#F5F2E8",
+              fontSize: 11, padding: "7px 8px", marginBottom: 12, ...fontMono }}>
+              {Object.entries(CURRENCIES).map(function (entry) {
+                return <option key={entry[0]} value={entry[0]}>{entry[1].label} ({entry[1].symbol})</option>;
+              })}
+            </select>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>EDITING UI</p>
             <div style={{ display: "flex", gap: 5 }}>
               <button onClick={function () { applyAppearance({ uiLight: false }); }} style={{
                 flex: 1, padding: "6px 4px", fontSize: 10, borderRadius: 3, cursor: "pointer", ...fontMono,
@@ -398,7 +451,7 @@ function ExpenseReportInner() {
                 <div key={it.id} style={{ display: "flex", fontSize: 11.5, marginBottom: 4 }}>
                   <span style={{ flex: 2, wordBreak: "break-word" }}>{it.desc || "—"}</span>
                   <span style={{ flex: 1, color: sub }}>{it.category}</span>
-                  <span style={{ flex: 1, textAlign: "right" }}>{fmt(it.amount)}</span>
+                  <span style={{ flex: 1, textAlign: "right" }}>{fmtCurrency(it.amount, currency)}</span>
                 </div>
               );
             })}
@@ -410,7 +463,7 @@ function ExpenseReportInner() {
               {byCategory.map(function (entry) {
                 return (
                   <div key={entry[0]} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-                    <span style={{ color: sub }}>{entry[0]}</span><span>{fmt(entry[1])}</span>
+                    <span style={{ color: sub }}>{entry[0]}</span><span>{fmtCurrency(entry[1], currency)}</span>
                   </div>
                 );
               })}
@@ -419,7 +472,7 @@ function ExpenseReportInner() {
 
           <div style={{ borderTop: "1px dashed " + tone.line, paddingTop: 10, marginBottom: 4 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700 }}>
-              <span>TOTAL</span><span style={{ color: stamp }}>{fmt(grandTotal)}</span>
+              <span>TOTAL</span><span style={{ color: stamp }}>{fmtCurrency(grandTotal, currency)}</span>
             </div>
           </div>
 
