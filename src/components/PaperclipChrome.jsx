@@ -1,6 +1,5 @@
 export const ink = "#1A1A1A";
 export const sub = "#6B6B6B";
-export const paperDefault = "#FFFDF6";
 export const bg = "#0A0A0A";
 export const stamp = "#C41E3A";
 export const fontMono = { fontFamily: "'Courier New', 'Courier', monospace" };
@@ -35,11 +34,7 @@ export function PaperclipBackdrop({ children }) {
   );
 }
 
-// Faint, per-tool black-line-art scene sitting behind the card — pass a set
-// of small line-icon glyphs unique to each tool, so Receipt vs. Timesheet
-// vs. whatever comes next each get their own quiet visual identity while
-// staying inside the same black/white paper theme.
-export function ToolBackgroundArt({ glyphs, color }) {
+export function ToolBackgroundArt({ glyphs }) {
   const positions = [
     { top: "8%", left: "6%", size: 46, rotate: -12 },
     { top: "14%", right: "8%", size: 34, rotate: 8 },
@@ -52,7 +47,7 @@ export function ToolBackgroundArt({ glyphs, color }) {
         const glyph = glyphs[i % glyphs.length];
         return (
           <span key={i} style={Object.assign({
-            position: "absolute", fontSize: pos.size, color: color || "#F0C93A", opacity: 0.08,
+            position: "absolute", fontSize: pos.size, color: "#F0C93A", opacity: 0.08,
             transform: "rotate(" + pos.rotate + "deg)", fontFamily: "'Courier New', monospace",
           }, pos)}>{glyph}</span>
         );
@@ -61,9 +56,46 @@ export function ToolBackgroundArt({ glyphs, color }) {
   );
 }
 
-// Applies the entrance animation immediately on mount — no delay, no
-// remount trick. CSS animations already trigger automatically the moment
-// an element with the class appears in the DOM.
 export function StampWrapper({ children }) {
   return <div className="pc-stamp" style={{ position: "relative", zIndex: 1 }}>{children}</div>;
+}
+
+export function exportProfileFile(profile) {
+  const blob = new Blob([JSON.stringify(profile, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "paperclip-profile.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function readProfileFile(file, onLoaded) {
+  const reader = new FileReader();
+  reader.onload = function () {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (parsed && typeof parsed === "object") onLoaded(parsed);
+    } catch (e) {}
+  };
+  reader.readAsText(file);
+}
+
+export function readLogoFile(file, onLoaded) {
+  const reader = new FileReader();
+  reader.onload = function () { onLoaded(reader.result); };
+  reader.readAsDataURL(file);
+}
+
+export function nextDocNumber(kind, prefix) {
+  const key = "paperclip-docnum-" + kind;
+  let n = 1;
+  try {
+    const raw = window.localStorage.getItem(key);
+    n = raw ? parseInt(raw, 10) + 1 : 1;
+    window.localStorage.setItem(key, String(n));
+  } catch (e) {}
+  return (prefix || "#") + String(n).padStart(4, "0");
 }
