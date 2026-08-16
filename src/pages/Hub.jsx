@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Receipt, ArrowRight } from "lucide-react";
+import { Receipt, Clock, ArrowRight } from "lucide-react";
 import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper } from "../components/PaperclipChrome";
 
 const ITEMS = [
   { key: "receipt", icon: Receipt, title: "Receipt Generator", tag: "Free tool",
     desc: "Retail, service, rental, or freelance invoice — live calculating, printable, saves your business profile.", href: "/receipt" },
+  { key: "timesheet", icon: Clock, title: "Timesheet Generator", tag: "Free tool",
+    desc: "Weekly hours by day, auto-totaled, optional hourly pay calculation — printable and profile-aware.", href: "/timesheet" },
 ];
 
 export default function Hub() {

@@ -1,5 +1,3 @@
-import { useState, useEffect } from "react";
-
 export const ink = "#1A1A1A";
 export const sub = "#6B6B6B";
 export const paperDefault = "#FFFDF6";
@@ -41,7 +39,7 @@ export function PaperclipBackdrop({ children }) {
 // of small line-icon glyphs unique to each tool, so Receipt vs. Timesheet
 // vs. whatever comes next each get their own quiet visual identity while
 // staying inside the same black/white paper theme.
-export function ToolBackgroundArt({ glyphs }) {
+export function ToolBackgroundArt({ glyphs, color }) {
   const positions = [
     { top: "8%", left: "6%", size: 46, rotate: -12 },
     { top: "14%", right: "8%", size: 34, rotate: 8 },
@@ -54,7 +52,7 @@ export function ToolBackgroundArt({ glyphs }) {
         const glyph = glyphs[i % glyphs.length];
         return (
           <span key={i} style={Object.assign({
-            position: "absolute", fontSize: pos.size, color: "#FFFFFF", opacity: 0.05,
+            position: "absolute", fontSize: pos.size, color: color || "#F0C93A", opacity: 0.08,
             transform: "rotate(" + pos.rotate + "deg)", fontFamily: "'Courier New', monospace",
           }, pos)}>{glyph}</span>
         );
@@ -63,8 +61,9 @@ export function ToolBackgroundArt({ glyphs }) {
   );
 }
 
+// Applies the entrance animation immediately on mount — no delay, no
+// remount trick. CSS animations already trigger automatically the moment
+// an element with the class appears in the DOM.
 export function StampWrapper({ children }) {
-  const [key, setKey] = useState(0);
-  useEffect(function () { setKey(1); }, []);
-  return <div key={key} className={key ? "pc-stamp" : ""} style={{ position: "relative", zIndex: 1 }}>{children}</div>;
+  return <div className="pc-stamp" style={{ position: "relative", zIndex: 1 }}>{children}</div>;
 }
