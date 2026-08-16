@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -23,7 +23,7 @@ function loadProfile() {
 }
 function loadAppearance() {
   try { const raw = window.localStorage.getItem(APPEARANCE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-  return { size: "standard", tone: "cream" };
+  return { size: "standard", tone: "cream", uiLight: false };
 }
 function saveAppearance(val) {
   try { window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(val)); } catch (e) {}
@@ -156,7 +156,7 @@ function TimesheetGeneratorInner() {
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["◷", "▤", ":", "○"]} />
       <StampWrapper>
-      <div className="pc-no-print" style={{ width: 340 }}>
+      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: size.width }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
           textDecoration: "none", fontSize: 11, marginBottom: 14, ...fontMono }}>
           <ArrowLeft size={13} /> BACK
@@ -206,6 +206,17 @@ function TimesheetGeneratorInner() {
                   </button>
                 );
               })}
+            </div>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "12px 0 6px", letterSpacing: 0.5 }}>EDITING UI</p>
+            <div style={{ display: "flex", gap: 5 }}>
+              <button onClick={function () { applyAppearance({ uiLight: false }); }} style={{
+                flex: 1, padding: "6px 4px", fontSize: 10, borderRadius: 3, cursor: "pointer", ...fontMono,
+                background: !appearance.uiLight ? "#FFFDF6" : "#0A0A0A", color: !appearance.uiLight ? ink : "#8A8A8A",
+                border: "1px solid " + (!appearance.uiLight ? "#FFFDF6" : "#333") }}>Dark</button>
+              <button onClick={function () { applyAppearance({ uiLight: true }); }} style={{
+                flex: 1, padding: "6px 4px", fontSize: 10, borderRadius: 3, cursor: "pointer", ...fontMono,
+                background: appearance.uiLight ? "#FFFDF6" : "#0A0A0A", color: appearance.uiLight ? ink : "#8A8A8A",
+                border: "1px solid " + (appearance.uiLight ? "#FFFDF6" : "#333") }}>Light</button>
             </div>
           </div>
         )}
@@ -374,9 +385,12 @@ function TimesheetGeneratorInner() {
             )}
           </div>
 
-          <p style={{ textAlign: "center", fontSize: 10, color: sub, margin: "18px 0 10px" }}>
+          <p style={{ textAlign: "center", fontSize: 10, color: sub, margin: "18px 0 6px" }}>
             Signature: ______________________
           </p>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+            <DocumentQR />
+          </div>
         </div>
         <TornEdge paper={tone.paper} />
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Receipt, Clock, FileText, PlaneTakeoff, ArrowRight } from "lucide-react";
+import { Receipt, Clock, FileText, PlaneTakeoff, Package, ArrowRight } from "lucide-react";
 import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper } from "../components/PaperclipChrome";
 
 const ITEMS = [
@@ -11,6 +11,8 @@ const ITEMS = [
     desc: "Toggle only the clauses you need — confidentiality, termination, payment terms, and more — and it assembles live.", href: "/contract" },
   { key: "expense", icon: PlaneTakeoff, title: "Expense Report", tag: "Free tool",
     desc: "Itemized expenses auto-grouped by category with running subtotals, plus a grand total.", href: "/expense" },
+  { key: "packing", icon: Package, title: "Packing Slip", tag: "Free tool",
+    desc: "What's in the box, no pricing — ship-to address, order reference, and item list.", href: "/packing" },
 ];
 
 export default function Hub() {

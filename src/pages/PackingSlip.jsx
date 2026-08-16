@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR } from "../components/PaperclipChrome";
+import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -11,13 +11,6 @@ const SIZES = {
   narrow: { label: "Narrow (58mm)", width: 250 },
   standard: { label: "Standard (80mm)", width: 320 },
   wide: { label: "Full Page", width: 420 },
-};
-
-const TEMPLATES = {
-  retail: { label: "Retail Receipt", itemLabel: "Item", qtyLabel: "Qty", rateLabel: "Price" },
-  service: { label: "Service Receipt", itemLabel: "Service", qtyLabel: "Hrs", rateLabel: "Rate" },
-  rental: { label: "Rental Receipt", itemLabel: "Item Rented", qtyLabel: "Days", rateLabel: "Daily Rate" },
-  invoice: { label: "Freelance Invoice", itemLabel: "Description", qtyLabel: "Qty", rateLabel: "Rate" },
 };
 
 const PROFILE_KEY = "paperclip-profile-v1";
@@ -43,10 +36,9 @@ function sanitizeNumericInput(value) {
 }
 
 function makeItem() {
-  return { id: Math.random().toString(36).slice(2), desc: "", qty: "1", rate: "" };
+  return { id: Math.random().toString(36).slice(2), desc: "", qty: "1" };
 }
 
-function fmt(n) { return "$" + (Number(n) || 0).toFixed(2); }
 function businessNameSize(name) {
   const len = (name || "Your Business Name").length;
   if (len > 28) return 12;
@@ -61,7 +53,7 @@ function todayStr() {
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error, info) { console.error("Paperclip crashed:", error, info); }
+  componentDidCatch(error, info) { console.error("Packing Slip crashed:", error, info); }
   render() {
     if (this.state.hasError) {
       return (
@@ -89,29 +81,23 @@ function TornEdge({ paper }) {
   );
 }
 
-function ReceiptGeneratorInner() {
-  const [templateKey, setTemplateKey] = useState("retail");
+function PackingSlipInner() {
   const [items, setItems] = useState([makeItem(), makeItem()]);
-  const [taxRate, setTaxRate] = useState("0");
-  const [discount, setDiscount] = useState("0");
-  const [payment, setPayment] = useState("");
+  const [shipTo, setShipTo] = useState("");
+  const [orderRef, setOrderRef] = useState("");
+  const [notes, setNotes] = useState("");
   const [profile, setProfile] = useState(loadProfile);
   const [editingProfile, setEditingProfile] = useState(!profile.name);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [receiptNo] = useState(function () { return nextDocNumber("receipt", "RCPT-"); });
+  const [slipNo] = useState(function () { return nextDocNumber("packing", "SLIP-"); });
   const [date] = useState(todayStr);
   const [appearance, setAppearance] = useState(loadAppearance);
   const [showAppearance, setShowAppearance] = useState(false);
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
-  const [billTo, setBillTo] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [terms, setTerms] = useState("Net 15");
+  useEffect(function () { document.title = "Packing Slip — Papyri"; }, []);
 
-  useEffect(function () { document.title = "Receipt Generator — Papyri"; }, []);
-
-  const tpl = TEMPLATES[templateKey];
   const tone = PAPER_TONES[appearance.tone];
   const size = SIZES[appearance.size];
 
@@ -121,12 +107,9 @@ function ReceiptGeneratorInner() {
   function addItem() { setItems(function (prev) { return prev.concat([makeItem()]); }); }
   function removeItem(id) { setItems(function (prev) { return prev.filter(function (it) { return it.id !== id; }); }); }
 
-  const subtotal = useMemo(function () {
-    return items.reduce(function (sum, it) { return sum + (Number(it.qty) || 0) * (Number(it.rate) || 0); }, 0);
+  const totalItems = useMemo(function () {
+    return items.reduce(function (sum, it) { return sum + (Number(it.qty) || 0); }, 0);
   }, [items]);
-  const taxAmount = subtotal * ((Number(taxRate) || 0) / 100);
-  const discountAmount = Number(discount) || 0;
-  const total = Math.max(0, subtotal + taxAmount - discountAmount);
 
   function persistProfile(next) {
     try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch (e) {}
@@ -169,7 +152,7 @@ function ReceiptGeneratorInner() {
     <PaperclipBackdrop>
       <PaperclipFonts />
       <PaperclipStyles />
-      <ToolBackgroundArt glyphs={["$", "¢", "#", "%"]} />
+      <ToolBackgroundArt glyphs={["▣", "→", "◫", "✓"]} />
       <StampWrapper>
       <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: size.width }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
@@ -187,12 +170,12 @@ function ReceiptGeneratorInner() {
           </button>
         </div>
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
-          receipts and invoices, generated instantly
+          what's in the box, no pricing
         </p>
 
         {showAppearance && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>RECEIPT SIZE</p>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>SLIP SIZE</p>
             <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
               {Object.entries(SIZES).map(function (entry) {
                 const key = entry[0]; const s = entry[1];
@@ -206,7 +189,7 @@ function ReceiptGeneratorInner() {
               })}
             </div>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>PAPER TONE</p>
-            <div style={{ display: "flex", gap: 5 }}>
+            <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
               {Object.entries(PAPER_TONES).map(function (entry) {
                 const key = entry[0]; const t = entry[1];
                 const active = appearance.tone === key;
@@ -222,7 +205,7 @@ function ReceiptGeneratorInner() {
                 );
               })}
             </div>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "12px 0 6px", letterSpacing: 0.5 }}>EDITING UI</p>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>EDITING UI</p>
             <div style={{ display: "flex", gap: 5 }}>
               <button onClick={function () { applyAppearance({ uiLight: false }); }} style={{
                 flex: 1, padding: "6px 4px", fontSize: 10, borderRadius: 3, cursor: "pointer", ...fontMono,
@@ -235,20 +218,6 @@ function ReceiptGeneratorInner() {
             </div>
           </div>
         )}
-
-        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>TEMPLATE</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 18 }}>
-          {Object.entries(TEMPLATES).map(function (entry) {
-            const key = entry[0]; const t = entry[1];
-            const active = templateKey === key;
-            return (
-              <button key={key} onClick={function () { setTemplateKey(key); }} style={{
-                padding: "8px 6px", fontSize: 11, borderRadius: 3, cursor: "pointer", ...fontMono,
-                background: active ? "#FFFDF6" : "#1A1A1A", color: active ? ink : "#8A8A8A",
-                border: "1px solid " + (active ? "#FFFDF6" : "#333") }}>{t.label}</button>
-            );
-          })}
-        </div>
 
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -303,9 +272,6 @@ function ReceiptGeneratorInner() {
                 </button>
                 <input ref={importInputRef} type="file" accept="application/json" onChange={handleImportChosen} style={{ display: "none" }} />
               </div>
-              <p style={{ fontSize: 9.5, color: "#666", margin: "8px 0 0", lineHeight: 1.5 }}>
-                Saved locally in your browser. Export to move your profile to another device.
-              </p>
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -319,45 +285,29 @@ function ReceiptGeneratorInner() {
           )}
         </div>
 
-        {templateKey === "invoice" && (
-          <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 8px", letterSpacing: 0.5 }}>INVOICE DETAILS</p>
-            <input value={billTo} onChange={function (e) { setBillTo(e.target.value); }}
-              placeholder="Bill to (client name)" style={{ width: "100%", background: "#0A0A0A", border: "1px solid #333", borderRadius: 3,
-                color: "#F5F2E8", fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 6, ...fontMono }} />
-            <div style={{ display: "flex", gap: 6 }}>
-              <label style={{ display: "none" }} htmlFor="pc-due-date">Due date</label>
-              <input id="pc-due-date" value={dueDate} onChange={function (e) { setDueDate(e.target.value); }} type="date" style={{
-                flex: 1, background: "#0A0A0A", border: "1px solid #333", borderRadius: 3, color: "#F5F2E8",
-                fontSize: 11, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
-              <label style={{ display: "none" }} htmlFor="pc-terms">Payment terms</label>
-              <select id="pc-terms" value={terms} onChange={function (e) { setTerms(e.target.value); }} style={{
-                flex: 1, background: "#0A0A0A", border: "1px solid #333", borderRadius: 3, color: "#F5F2E8",
-                fontSize: 11, padding: "7px 8px", boxSizing: "border-box", ...fontMono }}>
-                <option>Due on receipt</option>
-                <option>Net 15</option>
-                <option>Net 30</option>
-                <option>Net 60</option>
-              </select>
-            </div>
-          </div>
-        )}
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>SHIP TO</p>
+        <textarea value={shipTo} onChange={function (e) { setShipTo(e.target.value); }} rows={2}
+          placeholder="Recipient name and address"
+          style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 10, resize: "vertical", ...fontMono }} />
 
-        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>LINE ITEMS</p>
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>ORDER REFERENCE (optional)</p>
+        <input value={orderRef} onChange={function (e) { setOrderRef(e.target.value); }} placeholder="Order # or PO #"
+          style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 16, ...fontMono }} />
+
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>ITEMS</p>
         {items.map(function (it) {
           return (
             <div key={it.id} style={{ display: "flex", gap: 5, marginBottom: 6, alignItems: "center" }}>
               <input value={it.desc} onChange={function (e) { updateItem(it.id, "desc", e.target.value); }}
-                placeholder={tpl.itemLabel} style={{ flex: 3, minWidth: 0, background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3,
+                placeholder="Item description" style={{ flex: 3, minWidth: 0, background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3,
                   color: "#F5F2E8", fontSize: 11.5, padding: "7px 8px", ...fontMono }} />
               <input value={it.qty} onChange={function (e) { updateItem(it.id, "qty", sanitizeNumericInput(e.target.value)); }}
-                placeholder={tpl.qtyLabel} style={{ flex: 1, minWidth: 0, background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3,
-                  color: "#F5F2E8", fontSize: 11.5, padding: "7px 6px", textAlign: "center", ...fontMono }} />
-              <input value={it.rate} onChange={function (e) { updateItem(it.id, "rate", sanitizeNumericInput(e.target.value)); }}
-                placeholder={tpl.rateLabel} style={{ flex: 1.4, minWidth: 0, background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3,
+                placeholder="Qty" style={{ flex: 1, minWidth: 0, background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3,
                   color: "#F5F2E8", fontSize: 11.5, padding: "7px 6px", textAlign: "center", ...fontMono }} />
               {items.length > 1 && (
-                <button onClick={function () { removeItem(it.id); }} aria-label="Remove line item" style={{ background: "none", border: "none", color: "#666", cursor: "pointer", flexShrink: 0 }}>
+                <button onClick={function () { removeItem(it.id); }} aria-label="Remove item" style={{ background: "none", border: "none", color: "#666", cursor: "pointer", flexShrink: 0 }}>
                   <X size={14} />
                 </button>
               )}
@@ -367,29 +317,15 @@ function ReceiptGeneratorInner() {
         <button onClick={addItem} style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%",
           background: "none", border: "1px dashed #333", borderRadius: 3, padding: "8px 0", color: "#8A8A8A",
-          fontSize: 11, cursor: "pointer", marginBottom: 16, ...fontMono }}>
-          <Plus size={12} /> Add line item
+          fontSize: 11, cursor: "pointer", margin: "10px 0 16px", ...fontMono }}>
+          <Plus size={12} /> Add item
         </button>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          <div style={{ flex: 1 }}>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>TAX %</p>
-            <input value={taxRate} onChange={function (e) { setTaxRate(sanitizeNumericInput(e.target.value)); }} style={{
-              width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-              fontSize: 12, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>DISCOUNT $</p>
-            <input value={discount} onChange={function (e) { setDiscount(sanitizeNumericInput(e.target.value)); }} style={{
-              width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-              fontSize: 12, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
-          </div>
-        </div>
-
-        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>PAYMENT METHOD (optional)</p>
-        <input value={payment} onChange={function (e) { setPayment(e.target.value); }} placeholder="e.g. Cash, Card, Venmo"
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>NOTES (optional)</p>
+        <textarea value={notes} onChange={function (e) { setNotes(e.target.value); }} rows={2}
+          placeholder="Handling instructions, etc."
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, ...fontMono }} />
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, resize: "vertical", ...fontMono }} />
 
         <button onClick={handlePrint} style={{
           width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
@@ -411,70 +347,54 @@ function ReceiptGeneratorInner() {
             {profile.contact && <p style={{ fontSize: 10.5, color: sub, margin: 0 }}>{profile.contact}</p>}
           </div>
 
-          {templateKey === "invoice" && billTo && (
+          {shipTo && (
             <div style={{ marginBottom: 12, fontSize: 11 }}>
-              <p style={{ margin: "0 0 2px", color: sub }}>Bill to:</p>
-              <p style={{ margin: 0 }}>{billTo}</p>
+              <p style={{ margin: "0 0 2px", color: sub }}>Ship to:</p>
+              <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{shipTo}</p>
             </div>
           )}
 
           <div style={{ borderTop: "1px dashed " + tone.line, borderBottom: "1px dashed " + tone.line, padding: "8px 0", marginBottom: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5 }}>
-              <span>{tpl.label}</span>
-              <span>{receiptNo}</span>
+              <span>Packing Slip</span>
+              <span>{slipNo}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: sub }}>
               <span>{date}</span>
-              {payment && <span>{payment}</span>}
+              {orderRef && <span>Ref: {orderRef}</span>}
             </div>
-            {templateKey === "invoice" && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: sub, marginTop: 3 }}>
-                <span>{terms}</span>
-                {dueDate && <span>Due {dueDate}</span>}
-              </div>
-            )}
           </div>
 
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", fontSize: 10, color: sub, marginBottom: 6, letterSpacing: 0.3 }}>
-              <span style={{ flex: 3 }}>{tpl.itemLabel.toUpperCase()}</span>
-              <span style={{ flex: 1, textAlign: "center" }}>{tpl.qtyLabel.toUpperCase()}</span>
-              <span style={{ flex: 1.5, textAlign: "right" }}>AMOUNT</span>
+              <span style={{ flex: 3 }}>ITEM</span>
+              <span style={{ flex: 1, textAlign: "right" }}>QTY</span>
             </div>
-            {items.filter(function (it) { return it.desc || it.rate; }).map(function (it) {
-              const lineTotal = (Number(it.qty) || 0) * (Number(it.rate) || 0);
+            {items.filter(function (it) { return it.desc; }).map(function (it) {
               return (
                 <div key={it.id} style={{ display: "flex", fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ flex: 3, wordBreak: "break-word" }}>{it.desc || "—"}</span>
-                  <span style={{ flex: 1, textAlign: "center" }}>{it.qty || "0"}</span>
-                  <span style={{ flex: 1.5, textAlign: "right" }}>{fmt(lineTotal)}</span>
+                  <span style={{ flex: 3, wordBreak: "break-word" }}>{it.desc}</span>
+                  <span style={{ flex: 1, textAlign: "right" }}>{it.qty || "0"}</span>
                 </div>
               );
             })}
           </div>
 
           <div style={{ borderTop: "1px dashed " + tone.line, paddingTop: 10, marginBottom: 4 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3 }}>
-              <span>Subtotal</span><span>{fmt(subtotal)}</span>
-            </div>
-            {Number(taxRate) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3, color: sub }}>
-                <span>Tax ({taxRate}%)</span><span>{fmt(taxAmount)}</span>
-              </div>
-            )}
-            {discountAmount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3, color: sub }}>
-                <span>Discount</span><span>-{fmt(discountAmount)}</span>
-              </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 700, marginTop: 8,
-              paddingTop: 8, borderTop: "1px solid " + ink }}>
-              <span>TOTAL</span><span style={{ color: stamp }}>{fmt(total)}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700 }}>
+              <span>TOTAL ITEMS</span><span>{totalItems}</span>
             </div>
           </div>
 
+          {notes && (
+            <div style={{ marginTop: 12, fontSize: 11, color: sub }}>
+              <p style={{ margin: "0 0 2px", fontWeight: 700, color: ink }}>Notes</p>
+              <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{notes}</p>
+            </div>
+          )}
+
           <p style={{ textAlign: "center", fontSize: 10, color: sub, margin: "18px 0 6px" }}>
-            Thank you!
+            Please verify contents on arrival.
           </p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
             <DocumentQR />
@@ -487,10 +407,10 @@ function ReceiptGeneratorInner() {
   );
 }
 
-export default function ReceiptGenerator() {
+export default function PackingSlip() {
   return (
     <ErrorBoundary>
-      <ReceiptGeneratorInner />
+      <PackingSlipInner />
     </ErrorBoundary>
   );
 }

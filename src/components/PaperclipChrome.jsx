@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 export const ink = "#1A1A1A";
 export const sub = "#6B6B6B";
 export const bg = "#0A0A0A";
@@ -19,6 +21,13 @@ export function PaperclipStyles() {
         .pc-receipt { position: absolute; top: 0; left: 0; width: 100% !important; box-shadow: none !important; }\
         .pc-no-print { display: none !important; }\
       }\
+      .pc-ui-light { background: #F0EFE9 !important; }\
+      .pc-ui-light p { color: #1A1A1A !important; }\
+      .pc-ui-light input, .pc-ui-light select, .pc-ui-light textarea {\
+        background: #FFFFFF !important; color: #1A1A1A !important; border-color: #D8D6CE !important;\
+      }\
+      .pc-ui-light > div { background: #FAFAF6 !important; border-color: #E2E0D8 !important; }\
+      .pc-ui-light button { color: #1A1A1A !important; border-color: #D8D6CE !important; }\
     "}</style>
   );
 }
@@ -34,7 +43,11 @@ export function PaperclipBackdrop({ children }) {
   );
 }
 
-export function ToolBackgroundArt({ glyphs }) {
+// Faint, per-tool black-line-art scene sitting behind the card — pass a set
+// of small line-icon glyphs unique to each tool, so Receipt vs. Timesheet
+// vs. whatever comes next each get their own quiet visual identity while
+// staying inside the same black/white paper theme.
+export function ToolBackgroundArt({ glyphs, color }) {
   const positions = [
     { top: "8%", left: "6%", size: 46, rotate: -12 },
     { top: "14%", right: "8%", size: 34, rotate: 8 },
@@ -47,7 +60,7 @@ export function ToolBackgroundArt({ glyphs }) {
         const glyph = glyphs[i % glyphs.length];
         return (
           <span key={i} style={Object.assign({
-            position: "absolute", fontSize: pos.size, color: "#F0C93A", opacity: 0.08,
+            position: "absolute", fontSize: pos.size, color: color || "#F0C93A", opacity: 0.08,
             transform: "rotate(" + pos.rotate + "deg)", fontFamily: "'Courier New', monospace",
           }, pos)}>{glyph}</span>
         );
@@ -56,10 +69,15 @@ export function ToolBackgroundArt({ glyphs }) {
   );
 }
 
+// Applies the entrance animation immediately on mount — no delay, no
+// remount trick. CSS animations already trigger automatically the moment
+// an element with the class appears in the DOM.
 export function StampWrapper({ children }) {
   return <div className="pc-stamp" style={{ position: "relative", zIndex: 1 }}>{children}</div>;
 }
 
+// Downloads the current profile as a JSON file the user can re-import later
+// or on another device.
 export function exportProfileFile(profile) {
   const blob = new Blob([JSON.stringify(profile, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -72,6 +90,7 @@ export function exportProfileFile(profile) {
   URL.revokeObjectURL(url);
 }
 
+// Reads a chosen JSON file back into a profile object via callback.
 export function readProfileFile(file, onLoaded) {
   const reader = new FileReader();
   reader.onload = function () {
@@ -83,12 +102,16 @@ export function readProfileFile(file, onLoaded) {
   reader.readAsText(file);
 }
 
+// Reads an uploaded image file as a base64 data URL for the logo.
 export function readLogoFile(file, onLoaded) {
   const reader = new FileReader();
   reader.onload = function () { onLoaded(reader.result); };
   reader.readAsDataURL(file);
 }
 
+// Persistent, sequential per-document-type numbering (RCPT-0001, TIME-0001,
+// etc.) instead of a random number on every load — saved in localStorage,
+// keyed by document kind so each tool has its own counter.
 export function nextDocNumber(kind, prefix) {
   const key = "paperclip-docnum-" + kind;
   let n = 1;
@@ -98,4 +121,21 @@ export function nextDocNumber(kind, prefix) {
     window.localStorage.setItem(key, String(n));
   } catch (e) {}
   return (prefix || "#") + String(n).padStart(4, "0");
+}
+
+// Small QR code printed in the corner of documents, linking back to the
+// site. Uses the same 'qrcode' package as CipherForge's TOTP tool.
+export function DocumentQR() {
+  const [dataUrl, setDataUrl] = useState("");
+  useEffect(function () {
+    let cancelled = false;
+    import("qrcode").then(function (QRCode) {
+      QRCode.toDataURL("https://getpapyri.com", { margin: 0, width: 60, color: { dark: "#1A1A1A", light: "#00000000" } })
+        .then(function (url) { if (!cancelled) setDataUrl(url); })
+        .catch(function () {});
+    });
+    return function () { cancelled = true; };
+  }, []);
+  if (!dataUrl) return null;
+  return <img src={dataUrl} alt="getpapyri.com" style={{ width: 34, height: 34, opacity: 0.6 }} />;
 }
