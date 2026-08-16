@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, Component } from "react";
-import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper } from "../components/PaperclipChrome";
+import { useState, useEffect, useMemo, useRef, Component } from "react";
+import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image } from "lucide-react";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -25,7 +25,7 @@ const APPEARANCE_KEY = "paperclip-appearance-v1";
 
 function loadProfile() {
   try { const raw = window.localStorage.getItem(PROFILE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-  return { name: "", address: "", contact: "" };
+  return { name: "", address: "", contact: "", logo: "" };
 }
 function loadAppearance() {
   try { const raw = window.localStorage.getItem(APPEARANCE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -35,13 +35,6 @@ function saveAppearance(val) {
   try { window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(val)); } catch (e) {}
 }
 
-function makeItem() {
-  return { id: Math.random().toString(36).slice(2), desc: "", qty: "1", rate: "" };
-}
-
-// Same fix used across the whole portfolio for numeric text inputs — filters
-// to digits and a SINGLE decimal point, so "12.34.56"-style typos can't
-// silently evaluate to 0 in the total.
 function sanitizeNumericInput(value) {
   let v = value.replace(/[^0-9.]/g, "");
   const parts = v.split(".");
@@ -49,12 +42,21 @@ function sanitizeNumericInput(value) {
   return v;
 }
 
+function makeItem() {
+  return { id: Math.random().toString(36).slice(2), desc: "", qty: "1", rate: "" };
+}
+
 function fmt(n) { return "$" + (Number(n) || 0).toFixed(2); }
+function businessNameSize(name) {
+  const len = (name || "Your Business Name").length;
+  if (len > 28) return 12;
+  if (len > 18) return 14;
+  return 16;
+}
 function todayStr() {
   const d = new Date();
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
-function receiptNumber() { return "#" + Math.floor(10000 + Math.random() * 89999); }
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -96,16 +98,18 @@ function ReceiptGeneratorInner() {
   const [profile, setProfile] = useState(loadProfile);
   const [editingProfile, setEditingProfile] = useState(!profile.name);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [receiptNo] = useState(receiptNumber);
+  const [receiptNo] = useState(function () { return nextDocNumber("receipt", "RCPT-"); });
   const [date] = useState(todayStr);
   const [appearance, setAppearance] = useState(loadAppearance);
   const [showAppearance, setShowAppearance] = useState(false);
+  const logoInputRef = useRef(null);
+  const importInputRef = useRef(null);
 
   const [billTo, setBillTo] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [terms, setTerms] = useState("Net 15");
 
-  useEffect(function () { document.title = "Receipt Generator — Paperclip"; }, []);
+  useEffect(function () { document.title = "Receipt Generator — Papyri"; }, []);
 
   const tpl = TEMPLATES[templateKey];
   const tone = PAPER_TONES[appearance.tone];
@@ -124,18 +128,41 @@ function ReceiptGeneratorInner() {
   const discountAmount = Number(discount) || 0;
   const total = Math.max(0, subtotal + taxAmount - discountAmount);
 
+  function persistProfile(next) {
+    try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch (e) {}
+  }
   function saveProfile() {
-    try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch (e) {}
+    persistProfile(profile);
     setEditingProfile(false);
     setSavedFlash(true);
     setTimeout(function () { setSavedFlash(false); }, 1500);
+  }
+  function handleLogoChosen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    readLogoFile(file, function (dataUrl) {
+      const next = Object.assign({}, profile, { logo: dataUrl });
+      setProfile(next);
+      persistProfile(next);
+    });
+    e.target.value = "";
+  }
+  function handleImportChosen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    readProfileFile(file, function (parsed) {
+      const next = { name: parsed.name || "", address: parsed.address || "", contact: parsed.contact || "", logo: parsed.logo || "" };
+      setProfile(next);
+      persistProfile(next);
+      setEditingProfile(false);
+    });
+    e.target.value = "";
   }
   function applyAppearance(next) {
     const merged = Object.assign({}, appearance, next);
     setAppearance(merged);
     saveAppearance(merged);
   }
-
   function handlePrint() { window.print(); }
 
   return (
@@ -151,7 +178,7 @@ function ReceiptGeneratorInner() {
         </a>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
           <p style={{ ...fontMono, fontSize: 20, fontWeight: 700, color: "#F5F2E8", letterSpacing: 0.5, margin: 0 }}>
-            PAPERCLIP
+            PAPYRI
           </p>
           <button onClick={function () { setShowAppearance(!showAppearance); }} aria-label="Appearance settings" style={{
             background: showAppearance ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
@@ -223,6 +250,21 @@ function ReceiptGeneratorInner() {
           </div>
           {editingProfile ? (
             <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                {profile.logo ? (
+                  <img src={profile.logo} alt="Logo preview" style={{ width: 32, height: 32, borderRadius: 3, objectFit: "cover", border: "1px solid #333" }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: 3, border: "1px dashed #333", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Image size={14} color="#666" />
+                  </div>
+                )}
+                <button onClick={function () { logoInputRef.current.click(); }} style={{
+                  fontSize: 10.5, color: "#8A8A8A", background: "none", border: "1px solid #333", borderRadius: 3,
+                  padding: "6px 10px", cursor: "pointer", ...fontMono }}>
+                  {profile.logo ? "Change logo" : "Upload logo"}
+                </button>
+                <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoChosen} style={{ display: "none" }} />
+              </div>
               <input value={profile.name} onChange={function (e) { setProfile(Object.assign({}, profile, { name: e.target.value })); }}
                 placeholder="Business name" style={{ width: "100%", background: "#0A0A0A", border: "1px solid #333", borderRadius: 3,
                   color: "#F5F2E8", fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 6, ...fontMono }} />
@@ -234,18 +276,34 @@ function ReceiptGeneratorInner() {
                   color: "#F5F2E8", fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 8, ...fontMono }} />
               <button onClick={saveProfile} style={{
                 width: "100%", padding: "8px 0", borderRadius: 3, border: "none", background: "#FFFDF6", color: ink,
-                fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, ...fontMono }}>
+                fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, ...fontMono, marginBottom: 8 }}>
                 {savedFlash ? <Check size={12} /> : <Save size={12} />} {savedFlash ? "Saved" : "Save profile"}
               </button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={function () { exportProfileFile(profile); }} style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: "none",
+                  border: "1px solid #333", borderRadius: 3, color: "#8A8A8A", fontSize: 10.5, padding: "6px 0", cursor: "pointer", ...fontMono }}>
+                  <Download size={11} /> Export
+                </button>
+                <button onClick={function () { importInputRef.current.click(); }} style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: "none",
+                  border: "1px solid #333", borderRadius: 3, color: "#8A8A8A", fontSize: 10.5, padding: "6px 0", cursor: "pointer", ...fontMono }}>
+                  <Upload size={11} /> Import
+                </button>
+                <input ref={importInputRef} type="file" accept="application/json" onChange={handleImportChosen} style={{ display: "none" }} />
+              </div>
               <p style={{ fontSize: 9.5, color: "#666", margin: "8px 0 0", lineHeight: 1.5 }}>
-                Saved locally in your browser — fill this in once and every future receipt uses it automatically.
+                Saved locally in your browser. Export to move your profile to another device.
               </p>
             </div>
           ) : (
-            <div style={{ ...fontMono, fontSize: 11.5, color: "#F5F2E8", lineHeight: 1.6 }}>
-              <p style={{ margin: 0 }}>{profile.name || "—"}</p>
-              <p style={{ margin: 0, color: "#AAA" }}>{profile.address}</p>
-              <p style={{ margin: 0, color: "#AAA" }}>{profile.contact}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {profile.logo && <img src={profile.logo} alt="Logo" style={{ width: 34, height: 34, borderRadius: 3, objectFit: "cover", flexShrink: 0 }} />}
+              <div style={{ ...fontMono, fontSize: 11.5, color: "#F5F2E8", lineHeight: 1.6 }}>
+                <p style={{ margin: 0 }}>{profile.name || "—"}</p>
+                <p style={{ margin: 0, color: "#AAA" }}>{profile.address}</p>
+                <p style={{ margin: 0, color: "#AAA" }}>{profile.contact}</p>
+              </div>
             </div>
           )}
         </div>
@@ -336,7 +394,8 @@ function ReceiptGeneratorInner() {
           boxShadow: "0 10px 40px rgba(0,0,0,0.5)", transition: "width 0.2s ease, background 0.2s ease",
         }}>
           <div style={{ textAlign: "center", marginBottom: 14 }}>
-            <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 2px", letterSpacing: 0.5 }}>{profile.name || "Your Business Name"}</p>
+            {profile.logo && <img src={profile.logo} alt="Logo" style={{ width: 44, height: 44, borderRadius: 4, objectFit: "cover", margin: "0 auto 8px" }} />}
+            <p style={{ fontSize: businessNameSize(profile.name), fontWeight: 700, margin: "0 0 2px", letterSpacing: 0.3, wordBreak: "break-word", lineHeight: 1.3 }}>{profile.name || "Your Business Name"}</p>
             {profile.address && <p style={{ fontSize: 10.5, color: sub, margin: "0 0 2px" }}>{profile.address}</p>}
             {profile.contact && <p style={{ fontSize: 10.5, color: sub, margin: 0 }}>{profile.contact}</p>}
           </div>

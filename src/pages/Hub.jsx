@@ -15,7 +15,7 @@ const ITEMS = [
 
 export default function Hub() {
   const [hovered, setHovered] = useState(null);
-  useEffect(function () { document.title = "Paperclip — Receipts & Invoices"; }, []);
+  useEffect(function () { document.title = "Papyri — Receipts & Invoices"; }, []);
 
   return (
     <PaperclipBackdrop>
@@ -25,7 +25,7 @@ export default function Hub() {
       <StampWrapper>
         <div style={{ width: 380, ...fontMono }}>
           <p style={{ fontSize: 24, fontWeight: 700, color: "#F5F2E8", letterSpacing: 0.5, margin: "0 0 4px" }}>
-            PAPERCLIP
+            PAPYRI
           </p>
           <p style={{ fontSize: 12, color: "#8A8A8A", margin: "0 0 24px" }}>
             receipts, invoices, and paperwork — generated instantly
@@ -68,8 +68,16 @@ export default function Hub() {
             );
           })}
 
-          <div style={{ border: "1px dashed #2A2A2A", borderRadius: 6, padding: "12px 14px", textAlign: "center", marginTop: 4 }}>
+          <div style={{ border: "1px dashed #2A2A2A", borderRadius: 6, padding: "12px 14px", textAlign: "center", marginTop: 4, marginBottom: 16 }}>
             <p style={{ fontSize: 10.5, color: "#666", margin: 0 }}>more paperwork tools coming</p>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            <a href="/about" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>About</a>
+            <a href="/contact" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>Contact</a>
+            <a href="/faq" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>FAQ</a>
+            <a href="/privacy" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>Privacy</a>
+            <a href="/terms" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>Terms</a>
           </div>
         </div>
       </StampWrapper>
