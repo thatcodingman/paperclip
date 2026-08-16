@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Receipt, Clock, ArrowRight } from "lucide-react";
+import { Receipt, Clock, FileText, ArrowRight } from "lucide-react";
 import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper } from "../components/PaperclipChrome";
 
 const ITEMS = [
@@ -7,6 +7,8 @@ const ITEMS = [
     desc: "Retail, service, rental, or freelance invoice — live calculating, printable, saves your business profile.", href: "/receipt" },
   { key: "timesheet", icon: Clock, title: "Timesheet Generator", tag: "Free tool",
     desc: "Weekly hours by day, auto-totaled, optional hourly pay calculation — printable and profile-aware.", href: "/timesheet" },
+  { key: "contract", icon: FileText, title: "Contract Generator", tag: "Free tool",
+    desc: "Toggle only the clauses you need — confidentiality, termination, payment terms, and more — and it assembles live.", href: "/contract" },
 ];
 
 export default function Hub() {
