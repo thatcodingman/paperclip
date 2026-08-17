@@ -123,6 +123,23 @@ export function nextDocNumber(kind, prefix) {
   return (prefix || "#") + String(n).padStart(4, "0");
 }
 
+// Structured data so search engines understand this is a free web app —
+// can surface richer results ("Free" badge, etc). Placed on the Hub only,
+// same pattern as CipherForge's site-level schema.
+export function PaperclipStructuredData() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Papyri",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Any (runs in browser)",
+    "url": "https://getpapyri.com",
+    "description": "Free browser-only paperwork tools: a receipt/invoice generator, timesheet generator, contract generator, expense report, and packing slip generator. No signup, nothing ever leaves your browser.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  };
+  return <script type="application/ld+json">{JSON.stringify(data)}</script>;
+}
+
 // Small QR code printed in the corner of documents, linking back to the
 // site. Uses the same 'qrcode' package as CipherForge's TOTP tool.
 export function DocumentQR() {

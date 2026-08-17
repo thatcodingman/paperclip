@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Receipt, Clock, FileText, PlaneTakeoff, Package, ArrowRight } from "lucide-react";
-import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper } from "../components/PaperclipChrome";
+import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData } from "../components/PaperclipChrome";
 
 const ITEMS = [
   { key: "receipt", icon: Receipt, title: "Receipt Generator", tag: "Free tool",
@@ -22,6 +22,7 @@ export default function Hub() {
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipStructuredData />
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["$", "#", "%", "="]} />
       <StampWrapper>
