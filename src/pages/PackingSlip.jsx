@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
-import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image } from "lucide-react";
-import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR } from "../components/PaperclipChrome";
+import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
+import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -89,10 +89,11 @@ function PackingSlipInner() {
   const [profile, setProfile] = useState(loadProfile);
   const [editingProfile, setEditingProfile] = useState(!profile.name);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [slipNo] = useState(function () { return nextDocNumber("packing", "SLIP-"); });
+  const [slipNo, setSlipNo] = useState(function () { return nextDocNumber("packing", "SLIP-"); });
   const [date] = useState(todayStr);
   const [appearance, setAppearance] = useState(loadAppearance);
   const [showAppearance, setShowAppearance] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
@@ -146,7 +147,22 @@ function PackingSlipInner() {
     setAppearance(merged);
     saveAppearance(merged);
   }
-  function handlePrint() { window.print(); }
+  function handlePrint() {
+    saveToHistory("packing", slipNo, (shipTo ? shipTo.split("\n")[0] : "Untitled") + " — " + totalItems + " items", {
+      items: items, shipTo: shipTo, orderRef: orderRef, notes: notes,
+    });
+    window.print();
+  }
+  function loadHistoryEntry(entry) {
+    const s = entry.state;
+    setItems(s.items && s.items.length ? s.items : [makeItem(), makeItem()]);
+    setShipTo(s.shipTo || "");
+    setOrderRef(s.orderRef || "");
+    setNotes(s.notes || "");
+    setSlipNo(entry.docNo);
+    setShowHistory(false);
+  }
+  const historyEntries = showHistory ? loadHistory("packing") : [];
 
   return (
     <PaperclipBackdrop>
@@ -163,15 +179,44 @@ function PackingSlipInner() {
           <p style={{ ...fontMono, fontSize: 20, fontWeight: 700, color: "#F5F2E8", letterSpacing: 0.5, margin: 0 }}>
             PAPYRI
           </p>
-          <button onClick={function () { setShowAppearance(!showAppearance); }} aria-label="Appearance settings" style={{
-            background: showAppearance ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
-            color: "#8A8A8A", padding: "6px 8px", cursor: "pointer" }}>
-            <Settings size={13} />
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={function () { setShowHistory(!showHistory); setShowAppearance(false); }} aria-label="Recent history" style={{
+              background: showHistory ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
+              color: "#8A8A8A", padding: "6px 8px", cursor: "pointer" }}>
+              <History size={13} />
+            </button>
+            <button onClick={function () { setShowAppearance(!showAppearance); setShowHistory(false); }} aria-label="Appearance settings" style={{
+              background: showAppearance ? "#222" : "none", border: "1px solid #333", borderRadius: 4,
+              color: "#8A8A8A", padding: "6px 8px", cursor: "pointer" }}>
+              <Settings size={13} />
+            </button>
+          </div>
         </div>
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
           what's in the box, no pricing
         </p>
+
+        {showHistory && (
+          <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
+            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 8px", letterSpacing: 0.5 }}>RECENTLY GENERATED</p>
+            {historyEntries.length === 0 ? (
+              <p style={{ fontSize: 11, color: "#666", margin: 0, ...fontMono }}>Nothing yet — print a slip to save it here.</p>
+            ) : historyEntries.map(function (entry) {
+              return (
+                <button key={entry.id} onClick={function () { loadHistoryEntry(entry); }} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+                  background: "#0A0A0A", border: "1px solid #2A2A2A", borderRadius: 3, padding: "8px 10px",
+                  marginBottom: 6, cursor: "pointer", textAlign: "left" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 11, color: "#F5F2E8", margin: 0, ...fontMono, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.summary}</p>
+                    <p style={{ fontSize: 9.5, color: "#666", margin: "2px 0 0", ...fontMono }}>{entry.docNo}</p>
+                  </div>
+                  <RotateCcw size={12} color="#8A8A8A" style={{ flexShrink: 0, marginLeft: 8 }} />
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {showAppearance && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
