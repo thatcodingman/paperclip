@@ -1,9 +1,18 @@
-import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop } from "../components/PaperclipChrome";
+import { useEffect } from "react";
+import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, PaperclipStructuredData } from "../components/PaperclipChrome";
 
 export default function Privacy() {
+  useEffect(function () { document.title = "Privacy Policy — Papyri"; }, []);
+
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipStructuredData
+        schemaType="WebPage"
+        name="Papyri Privacy Policy"
+        description="Papyri's privacy policy: nothing you type is sent to a server, and your business profile stays in your browser's local storage."
+        path="/privacy"
+      />
       <PaperclipStyles />
       <div className="pc-receipt" style={{
         width: 380, background: "#FFFDF6", color: "#1A1A1A", padding: "28px 24px", ...fontMono,

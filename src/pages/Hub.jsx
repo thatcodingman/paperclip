@@ -22,7 +22,11 @@ export default function Hub() {
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
-      <PaperclipStructuredData />
+      <PaperclipStructuredData
+        name="Papyri"
+        description="Free browser-only paperwork tools: a receipt/invoice generator, timesheet generator, contract generator, expense report, and packing slip generator. No signup, nothing ever leaves your browser."
+        path="/"
+      />
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["$", "#", "%", "="]} />
       <StampWrapper>
@@ -79,6 +83,7 @@ export default function Hub() {
             <a href="/about" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>About</a>
             <a href="/contact" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>Contact</a>
             <a href="/faq" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>FAQ</a>
+            <a href="/rss.xml" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>RSS</a>
             <a href="/privacy" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>Privacy</a>
             <a href="/terms" style={{ fontSize: 10, color: "#666", textDecoration: "none" }}>Terms</a>
           </div>

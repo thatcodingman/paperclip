@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Papyri — Free Paperwork Tools</title>
+    <link>https://getpapyri.com/</link>
+    <description>Updates from Papyri: free, browser-only receipt, invoice, timesheet, contract, expense, and packing-slip generators. No signup, nothing leaves your browser.</description>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 27 Aug 2026 05:37:12 GMT</lastBuildDate>
+
+    <item>
+      <title>Packing Slip Generator</title>
+      <link>https://getpapyri.com/packing</link>
+      <guid isPermaLink="true">https://getpapyri.com/packing</guid>
+      <pubDate>Thu, 27 Aug 2026 05:37:12 GMT</pubDate>
+      <description>Item and quantity list with ship-to address and order reference, no pricing shown. Free, printable, no signup.</description>
+    </item>
+
+    <item>
+      <title>Expense Report Generator</title>
+      <link>https://getpapyri.com/expense</link>
+      <guid isPermaLink="true">https://getpapyri.com/expense</guid>
+      <pubDate>Thu, 27 Aug 2026 05:37:12 GMT</pubDate>
+      <description>Itemized expenses auto-grouped by category with running subtotals and a grand total. Free, printable, no signup.</description>
+    </item>
+
+    <item>
+      <title>Contract Generator</title>
+      <link>https://getpapyri.com/contract</link>
+      <guid isPermaLink="true">https://getpapyri.com/contract</guid>
+      <pubDate>Thu, 27 Aug 2026 05:37:12 GMT</pubDate>
+      <description>Toggleable clause system — confidentiality, termination, payment terms, liability, governing law. Assembles live. Free, printable, no signup.</description>
+    </item>
+
+    <item>
+      <title>Timesheet Generator</title>
+      <link>https://getpapyri.com/timesheet</link>
+      <guid isPermaLink="true">https://getpapyri.com/timesheet</guid>
+      <pubDate>Thu, 27 Aug 2026 05:37:12 GMT</pubDate>
+      <description>Weekly hours by day, auto-totaled, optional hourly pay calculation. Free, printable, no signup.</description>
+    </item>
+
+    <item>
+      <title>Receipt &amp; Invoice Generator</title>
+      <link>https://getpapyri.com/receipt</link>
+      <guid isPermaLink="true">https://getpapyri.com/receipt</guid>
+      <pubDate>Thu, 27 Aug 2026 05:37:12 GMT</pubDate>
+      <description>Retail, Service, Rental, and Freelance Invoice templates with live calculating totals. Free, printable, no signup.</description>
+    </item>
+  </channel>
+</rss>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -167,6 +167,11 @@ function PackingSlipInner() {
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipStructuredData
+        name="Packing Slip Generator — Papyri"
+        description="Free packing slip generator — item and quantity list with ship-to address and order reference, no pricing shown. Printable. No signup."
+        path="/packing"
+      />
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["▣", "→", "◫", "✓"]} />
       <StampWrapper>

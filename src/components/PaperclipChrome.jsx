@@ -124,18 +124,42 @@ export function nextDocNumber(kind, prefix) {
 }
 
 // Structured data so search engines understand this is a free web app —
-// can surface richer results ("Free" badge, etc). Placed on the Hub only,
-// same pattern as CipherForge's site-level schema.
-export function PaperclipStructuredData() {
+// can surface richer results ("Free" badge, etc). Renders on the Hub and
+// on every tool page, each with its own name/description/URL so search
+// engines see distinct structured data per page instead of one blob
+// repeated everywhere. Info pages (About/Contact/Privacy/etc.) pass a
+// schemaType of their own (AboutPage, ContactPage, WebPage...) since
+// "WebApplication" only makes sense for the Hub and the 5 tools.
+export function PaperclipStructuredData({ name, description, path, schemaType }) {
   const data = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Papyri",
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Any (runs in browser)",
-    "url": "https://getpapyri.com",
-    "description": "Free browser-only paperwork tools: a receipt/invoice generator, timesheet generator, contract generator, expense report, and packing slip generator. No signup, nothing ever leaves your browser.",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "@type": schemaType || "WebApplication",
+    "name": name || "Papyri",
+    "url": "https://getpapyri.com" + (path || ""),
+    "description": description || "Free browser-only paperwork tools: a receipt/invoice generator, timesheet generator, contract generator, expense report, and packing slip generator. No signup, nothing ever leaves your browser.",
+    "isPartOf": { "@type": "WebSite", "name": "Papyri", "url": "https://getpapyri.com" },
+  };
+  if (!schemaType || schemaType === "WebApplication") {
+    data.applicationCategory = "BusinessApplication";
+    data.operatingSystem = "Any (runs in browser)";
+    data.offers = { "@type": "Offer", "price": "0", "priceCurrency": "USD" };
+  }
+  return <script type="application/ld+json">{JSON.stringify(data)}</script>;
+}
+
+// FAQPage structured data — takes the same {q, a} list the FAQ page
+// already renders, so search engines can pull real answers into results.
+export function PaperclipFAQStructuredData({ faqs }) {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map(function (item) {
+      return {
+        "@type": "Question",
+        "name": item.q,
+        "acceptedAnswer": { "@type": "Answer", "text": item.a },
+      };
+    }),
   };
   return <script type="application/ld+json">{JSON.stringify(data)}</script>;
 }

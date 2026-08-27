@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -179,6 +179,11 @@ function ExpenseReportInner() {
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipStructuredData
+        name="Expense Report Generator — Papyri"
+        description="Free expense report generator — itemized expenses auto-grouped by category with running subtotals and a grand total. Printable. No signup."
+        path="/expense"
+      />
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["✈", "◈", "▦", "∑"]} />
       <StampWrapper>

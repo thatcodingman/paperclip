@@ -1,4 +1,5 @@
-import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop } from "../components/PaperclipChrome";
+import { useEffect } from "react";
+import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, PaperclipFAQStructuredData } from "../components/PaperclipChrome";
 
 const FAQS = [
   { q: "Is anything I type sent to a server?", a: "No. Every document — receipts, timesheets, contracts, expense reports — is generated entirely in your browser. Nothing is transmitted anywhere." },
@@ -9,9 +10,12 @@ const FAQS = [
 ];
 
 export default function FAQ() {
+  useEffect(function () { document.title = "FAQ — Papyri"; }, []);
+
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipFAQStructuredData faqs={FAQS} />
       <PaperclipStyles />
       <div className="pc-receipt" style={{
         width: 380, background: "#FFFDF6", color: "#1A1A1A", padding: "28px 24px", ...fontMono,

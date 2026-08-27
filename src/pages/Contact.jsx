@@ -1,9 +1,18 @@
-import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop } from "../components/PaperclipChrome";
+import { useEffect } from "react";
+import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, PaperclipStructuredData } from "../components/PaperclipChrome";
 
 export default function Contact() {
+  useEffect(function () { document.title = "Contact — Papyri"; }, []);
+
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipStructuredData
+        schemaType="ContactPage"
+        name="Contact Papyri"
+        description="Get in touch about Papyri's free receipt, invoice, timesheet, contract, and expense report generators."
+        path="/contact"
+      />
       <PaperclipStyles />
       <div className="pc-receipt" style={{
         width: 380, background: "#FFFDF6", color: "#1A1A1A", padding: "28px 24px", ...fontMono,

@@ -1,9 +1,18 @@
-import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop } from "../components/PaperclipChrome";
+import { useEffect } from "react";
+import { fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, PaperclipStructuredData } from "../components/PaperclipChrome";
 
 export default function About() {
+  useEffect(function () { document.title = "About — Papyri"; }, []);
+
   return (
     <PaperclipBackdrop>
       <PaperclipFonts />
+      <PaperclipStructuredData
+        schemaType="AboutPage"
+        name="About Papyri"
+        description="Papyri is a set of free, printable business paperwork tools: receipts, invoices, timesheets, service agreements, and expense reports, generated entirely in your browser."
+        path="/about"
+      />
       <PaperclipStyles />
       <div className="pc-receipt" style={{
         width: 380, background: "#FFFDF6", color: "#1A1A1A", padding: "28px 24px", ...fontMono,
