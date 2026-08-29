@@ -79,15 +79,24 @@ export function StampWrapper({ children }) {
 // Numbered progress rail for the step-by-step generator flow (Business →
 // Items → Generate, etc). Shared across all 5 tools so the wizard looks
 // and behaves identically everywhere.
-export function WizardProgress({ steps, currentIndex }) {
+// Numbered progress rail for the step-by-step generator flow (Business →
+// Items → Generate, etc). Shared across all 5 tools so the wizard looks
+// and behaves identically everywhere. Completed steps are clickable —
+// this doubles as the "jump back to a section" affordance from any
+// later step, including the final review screen, without needing
+// separate edit buttons scattered around.
+export function WizardProgress({ steps, currentIndex, onStepClick }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 22, ...fontMono }}>
       {steps.map(function (step, i) {
         const done = i < currentIndex;
         const active = i === currentIndex;
+        const clickable = done && !!onStepClick;
         return (
           <div key={step.id} style={{ display: "flex", alignItems: "center", flex: i === steps.length - 1 ? "0 0 auto" : 1 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+            <div
+              onClick={clickable ? function () { onStepClick(i); } : undefined}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, cursor: clickable ? "pointer" : "default" }}>
               <div style={{
                 width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 10, fontWeight: 700,
@@ -114,25 +123,67 @@ export function WizardProgress({ steps, currentIndex }) {
 
 // Back / Continue nav for a wizard step. The last step renders neither —
 // its own action button (Print, Generate, etc) is the finishing move.
-export function WizardNav({ onBack, onNext, isFirst, isLast, nextLabel }) {
+// Pass `blocked` + `blockedMessage` to gate Continue on required fields —
+// the message explains what's missing rather than just disabling silently.
+export function WizardNav({ onBack, onNext, isFirst, isLast, nextLabel, blocked, blockedMessage }) {
   if (isFirst && isLast) return null;
   return (
-    <div style={{ display: "flex", gap: 8, marginTop: 4, marginBottom: 20 }}>
-      {!isFirst && (
-        <button onClick={onBack} style={{
-          flex: "0 0 auto", padding: "10px 16px", borderRadius: 4, border: "1px solid #333", background: "none",
-          color: "#8A8A8A", fontSize: 12, cursor: "pointer", ...fontMono }}>
-          &larr; Back
-        </button>
+    <div style={{ marginTop: 4, marginBottom: 20 }}>
+      {blocked && blockedMessage && (
+        <p style={{ ...fontMono, fontSize: 11, color: "#FB923C", margin: "0 0 8px" }}>{blockedMessage}</p>
       )}
-      {!isLast && (
-        <button onClick={onNext} style={{
-          flex: 1, padding: "10px 16px", borderRadius: 4, border: "none", background: "#F5F2E8",
-          color: "#0A0A0A", fontSize: 12, fontWeight: 700, cursor: "pointer", ...fontMono }}>
-          {nextLabel || "Continue \u2192"}
-        </button>
-      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        {!isFirst && (
+          <button onClick={onBack} style={{
+            flex: "0 0 auto", padding: "10px 16px", borderRadius: 4, border: "1px solid #333", background: "none",
+            color: "#8A8A8A", fontSize: 12, cursor: "pointer", ...fontMono }}>
+            &larr; Back
+          </button>
+        )}
+        {!isLast && (
+          <button onClick={blocked ? undefined : onNext} disabled={!!blocked} style={{
+            flex: 1, padding: "10px 16px", borderRadius: 4, border: "none",
+            background: blocked ? "#2A2A2A" : "#F5F2E8",
+            color: blocked ? "#666" : "#0A0A0A", fontSize: 12, fontWeight: 700,
+            cursor: blocked ? "not-allowed" : "pointer", ...fontMono }}>
+            {nextLabel || "Continue \u2192"}
+          </button>
+        )}
+      </div>
     </div>
+  );
+}
+
+// Generic draft autosave — persists a tool's in-progress form state
+// (and which step it was on) to localStorage, so refreshing or coming
+// back later doesn't lose everything. Each tool passes its own plain
+// object of fields; restored on mount, cleared once a document is
+// actually generated (or the user explicitly starts another).
+const DRAFT_PREFIX = "papyri-draft-";
+export function saveDraft(toolKey, data) {
+  try { window.localStorage.setItem(DRAFT_PREFIX + toolKey, JSON.stringify(data)); } catch (e) {}
+}
+export function loadDraft(toolKey) {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_PREFIX + toolKey);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+export function clearDraft(toolKey) {
+  try { window.localStorage.removeItem(DRAFT_PREFIX + toolKey); } catch (e) {}
+}
+
+// "Start Another" — secondary action on the Generate step, next to
+// Print. Resets the tool back to a blank document without leaving
+// the page or losing the saved business profile.
+export function StartAnotherButton({ onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      width: "100%", marginTop: 8, padding: "10px 0", borderRadius: 4, border: "1px solid #333", background: "none",
+      color: "#8A8A8A", fontSize: 12, cursor: "pointer", ...fontMono }}>
+      Start another \u2192
+    </button>
   );
 }
 

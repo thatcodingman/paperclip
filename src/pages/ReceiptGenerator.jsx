@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, StartAnotherButton, saveDraft, loadDraft, clearDraft, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -25,7 +25,6 @@ const APPEARANCE_KEY = "paperclip-appearance-v1";
 
 const ALL_STEPS = [
   { id: "business", label: "Business" },
-  { id: "customer", label: "Customer" },
   { id: "items", label: "Items" },
   { id: "tax", label: "Tax" },
   { id: "generate", label: "Generate" },
@@ -118,13 +117,63 @@ function ReceiptGeneratorInner() {
   const [terms, setTerms] = useState("Net 15");
 
   const [stepIndex, setStepIndex] = useState(0);
-  const visibleSteps = templateKey === "invoice" ? ALL_STEPS : ALL_STEPS.filter(function (s) { return s.id !== "customer"; });
+  const draftLoaded = useRef(false);
+
+  // Restore an in-progress draft on first mount, if one exists.
   useEffect(function () {
-    if (stepIndex > visibleSteps.length - 1) setStepIndex(visibleSteps.length - 1);
-  }, [visibleSteps.length]);
-  function goNext() { setStepIndex(function (i) { return Math.min(i + 1, visibleSteps.length - 1); }); }
+    const d = loadDraft("receipt");
+    if (d) {
+      setTemplateKey(d.templateKey || "retail");
+      setItems(d.items && d.items.length ? d.items : [makeItem(), makeItem()]);
+      setTaxRate(d.taxRate || "0");
+      setDiscount(d.discount || "0");
+      setPayment(d.payment || "");
+      setBillTo(d.billTo || "");
+      setDueDate(d.dueDate || "");
+      setTerms(d.terms || "Net 15");
+      setStepIndex(Math.min(d.stepIndex || 0, ALL_STEPS.length - 1));
+    }
+    draftLoaded.current = true;
+  }, []);
+
+  // Autosave the draft whenever anything meaningful changes (after the
+  // initial restore above, so we don't immediately overwrite it with
+  // the pre-restore blank state).
+  useEffect(function () {
+    if (!draftLoaded.current) return;
+    saveDraft("receipt", { templateKey, items, taxRate, discount, payment, billTo, dueDate, terms, stepIndex });
+  }, [templateKey, items, taxRate, discount, payment, billTo, dueDate, terms, stepIndex]);
+
+  function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
   function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
-  const currentStepId = visibleSteps[stepIndex] ? visibleSteps[stepIndex].id : "business";
+  function jumpTo(i) { setStepIndex(i); }
+  const currentStepId = ALL_STEPS[stepIndex].id;
+
+  const hasValidItem = items.some(function (it) { return it.desc.trim() && it.rate; });
+  const blockedByStep = {
+    business: !profile.name.trim(),
+    items: !hasValidItem,
+    tax: false,
+    generate: false,
+  };
+  const blockedMessage = {
+    business: "Add a business name to continue.",
+    items: "Add at least one item with a description and price.",
+  };
+
+  function resetAll() {
+    setTemplateKey("retail");
+    setItems([makeItem(), makeItem()]);
+    setTaxRate("0");
+    setDiscount("0");
+    setPayment("");
+    setBillTo("");
+    setDueDate("");
+    setTerms("Net 15");
+    setReceiptNo(nextDocNumber("receipt", "RCPT-"));
+    clearDraft("receipt");
+    setStepIndex(0);
+  }
 
   useEffect(function () { document.title = "Receipt Generator — Papyri"; }, []);
 
@@ -187,6 +236,7 @@ function ReceiptGeneratorInner() {
       templateKey: templateKey, items: items, taxRate: taxRate, discount: discount, payment: payment,
       billTo: billTo, dueDate: dueDate, terms: terms,
     });
+    clearDraft("receipt");
     window.print();
   }
 
@@ -203,8 +253,7 @@ function ReceiptGeneratorInner() {
     setTerms(s.terms || "Net 15");
     setReceiptNo(entry.docNo);
     setShowHistory(false);
-    const loadedSteps = loadedTemplate === "invoice" ? ALL_STEPS : ALL_STEPS.filter(function (st) { return st.id !== "customer"; });
-    setStepIndex(loadedSteps.length - 1);
+    setStepIndex(ALL_STEPS.length - 1);
   }
 
   const historyEntries = showHistory ? loadHistory("receipt") : [];
@@ -246,7 +295,7 @@ function ReceiptGeneratorInner() {
           receipts and invoices, generated instantly
         </p>
 
-        <WizardProgress steps={visibleSteps} currentIndex={stepIndex} />
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} onStepClick={jumpTo} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -407,7 +456,8 @@ function ReceiptGeneratorInner() {
 
         </>)}
 
-        {currentStepId === "customer" && templateKey === "invoice" && (<>
+        {currentStepId === "items" && (<>
+        {templateKey === "invoice" && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 8px", letterSpacing: 0.5 }}>INVOICE DETAILS</p>
             <input value={billTo} onChange={function (e) { setBillTo(e.target.value); }}
@@ -429,9 +479,8 @@ function ReceiptGeneratorInner() {
               </select>
             </div>
           </div>
-        </>)}
+        )}
 
-        {currentStepId === "items" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>LINE ITEMS</p>
         {items.map(function (it) {
           return (
@@ -487,16 +536,19 @@ function ReceiptGeneratorInner() {
           onBack={goBack} onNext={goNext}
           isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
           nextLabel={currentStepId === "tax" ? "Review & Generate \u2192" : "Continue \u2192"}
+          blocked={blockedByStep[currentStepId]}
+          blockedMessage={blockedMessage[currentStepId]}
         />
 
-        {currentStepId === "generate" && (
+        {currentStepId === "generate" && (<>
         <button onClick={handlePrint} style={{
           width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
-        )}
+        <StartAnotherButton onClick={resetAll} />
+        </>)}
       </div>
 
       {currentStepId === "generate" && (
