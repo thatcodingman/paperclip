@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Component } from "react";
 import { Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, StartAnotherButton, saveDraft, loadDraft, clearDraft, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -18,8 +18,7 @@ const APPEARANCE_KEY = "paperclip-appearance-v1";
 
 const ALL_STEPS = [
   { id: "business", label: "Business" },
-  { id: "parties", label: "Parties" },
-  { id: "scope", label: "Scope" },
+  { id: "details", label: "Details" },
   { id: "clauses", label: "Clauses" },
   { id: "generate", label: "Generate" },
 ];
@@ -117,9 +116,58 @@ function ContractGeneratorInner() {
   const importInputRef = useRef(null);
 
   const [stepIndex, setStepIndex] = useState(0);
+  const draftLoaded = useRef(false);
+
+  useEffect(function () {
+    const d = loadDraft("contract");
+    if (d) {
+      setPartyB(d.partyB || "");
+      setScope(d.scope || "");
+      setEffectiveDate(d.effectiveDate || "");
+      setNoticeDays(d.noticeDays || "14");
+      setTerms(d.terms || "within 15 days");
+      setState(d.state || "");
+      setActiveClauses(d.activeClauses || { confidentiality: true, termination: true, payment: true, liability: false, governingLaw: false });
+      setStepIndex(Math.min(d.stepIndex || 0, ALL_STEPS.length - 1));
+    }
+    draftLoaded.current = true;
+  }, []);
+
+  useEffect(function () {
+    if (!draftLoaded.current) return;
+    saveDraft("contract", { partyB, scope, effectiveDate, noticeDays, terms, state, activeClauses, stepIndex });
+  }, [partyB, scope, effectiveDate, noticeDays, terms, state, activeClauses, stepIndex]);
+
   function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
   function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  function jumpTo(i) { setStepIndex(i); }
   const currentStepId = ALL_STEPS[stepIndex].id;
+
+  const hasAnyClause = Object.values(activeClauses).some(Boolean);
+  const blockedByStep = {
+    business: !profile.name.trim(),
+    details: !partyB.trim(),
+    clauses: !hasAnyClause,
+    generate: false,
+  };
+  const blockedMessage = {
+    business: "Add your name or business name to continue.",
+    details: "Add the other party's name to continue.",
+    clauses: "Include at least one clause to continue.",
+  };
+
+  function resetAll() {
+    setPartyB("");
+    setScope("");
+    setEffectiveDate("");
+    setNoticeDays("14");
+    setTerms("within 15 days");
+    setState("");
+    setActiveClauses({ confidentiality: true, termination: true, payment: true, liability: false, governingLaw: false });
+    setDocNo(nextDocNumber("contract", "AGRE-"));
+    clearDraft("contract");
+    setStepIndex(0);
+  }
 
   useEffect(function () { document.title = "Contract Generator — Papyri"; }, []);
 
@@ -169,6 +217,7 @@ function ContractGeneratorInner() {
       partyB: partyB, scope: scope, effectiveDate: effectiveDate, noticeDays: noticeDays, terms: terms,
       state: state, activeClauses: activeClauses,
     });
+    clearDraft("contract");
     window.print();
   }
   function loadHistoryEntry(entry) {
@@ -226,7 +275,7 @@ function ContractGeneratorInner() {
           a simple agreement — toggle only the clauses you need
         </p>
 
-        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} />
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} onStepClick={jumpTo} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -367,7 +416,7 @@ function ContractGeneratorInner() {
         </div>
         </>)}
 
-        {currentStepId === "parties" && (<>
+        {currentStepId === "details" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>PARTY B</p>
         <input value={partyB} onChange={function (e) { setPartyB(e.target.value); }} placeholder="Other party's name"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
@@ -376,12 +425,10 @@ function ContractGeneratorInner() {
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>EFFECTIVE DATE</p>
         <input value={effectiveDate} onChange={function (e) { setEffectiveDate(e.target.value); }} type="date"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, ...fontMono }} />
-        </>)}
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 10, ...fontMono }} />
 
-        {currentStepId === "scope" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>SCOPE OF WORK</p>
-        <textarea value={scope} onChange={function (e) { setScope(e.target.value); }} rows={6}
+        <textarea value={scope} onChange={function (e) { setScope(e.target.value); }} rows={5}
           placeholder="Briefly describe the work or service..."
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
             fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, resize: "vertical", ...fontMono }} />
@@ -435,6 +482,8 @@ function ContractGeneratorInner() {
           onBack={goBack} onNext={goNext}
           isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
           nextLabel={currentStepId === "clauses" ? "Review & Generate \u2192" : "Continue \u2192"}
+          blocked={blockedByStep[currentStepId]}
+          blockedMessage={blockedMessage[currentStepId]}
         />
 
         {currentStepId === "generate" && (<>
@@ -444,6 +493,7 @@ function ContractGeneratorInner() {
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
+        <StartAnotherButton onClick={resetAll} />
 
         <p style={{ fontSize: 9, color: "#666", textAlign: "center", marginTop: 14, lineHeight: 1.5, ...fontMono }}>
           Not a substitute for legal advice. For anything high-stakes, have a lawyer review it.
