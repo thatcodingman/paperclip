@@ -14,22 +14,27 @@ const CATEGORIES = [
 const ITEMS = [
   { key: "receipt", icon: Receipt, title: "Receipt Generator",
     desc: "Retail, service, rental, or freelance invoice — live calculating, printable, saves your business profile.",
-    href: "/receipt", categories: ["retail", "service", "freelance"], popular: true, status: "READY",
+    benefit: "Turn any sale into a professional receipt in seconds.",
+    href: "/receipt", categories: ["retail", "service", "freelance"], popular: true, status: null,
     preview: { lines: [60, 90, 40, 75], footer: true, accent: "#863bff" } },
   { key: "timesheet", icon: Clock, title: "Timesheet Generator",
     desc: "Weekly hours by day, auto-totaled, optional hourly pay calculation — printable and profile-aware.",
-    href: "/timesheet", categories: ["hr", "freelance"], popular: false, status: "READY",
+    benefit: "Log a week's hours and get a clean, payable timesheet.",
+    href: "/timesheet", categories: ["hr", "freelance"], popular: false, status: null,
     preview: { grid: true, accent: "#47bfff" } },
   { key: "contract", icon: FileText, title: "Contract Generator",
     desc: "Toggle only the clauses you need — confidentiality, termination, payment terms, and more — and it assembles live.",
-    href: "/contract", categories: ["business", "freelance"], popular: true, status: "READY",
+    benefit: "Assemble a solid agreement without a lawyer on retainer.",
+    href: "/contract", categories: ["business", "freelance"], popular: true, status: null,
     preview: { lines: [95, 88, 92, 60, 80], footer: false, accent: "#F0C93A" } },
   { key: "expense", icon: PlaneTakeoff, title: "Expense Report",
     desc: "Itemized expenses auto-grouped by category with running subtotals, plus a grand total.",
-    href: "/expense", categories: ["business", "freelance"], popular: false, status: "READY",
+    benefit: "Turn a pile of receipts into one report to submit.",
+    href: "/expense", categories: ["business", "freelance"], popular: false, status: null,
     preview: { groups: true, accent: "#4ADE80" } },
   { key: "packing", icon: Package, title: "Packing Slip",
     desc: "What's in the box, no pricing — ship-to address, order reference, and item list.",
+    benefit: "Print a clean packing slip before every shipment.",
     href: "/packing", categories: ["retail", "service"], popular: false, status: "NEW",
     preview: { lines: [70, 50, 65], footer: false, accent: "#FB923C" } },
 ];
@@ -58,6 +63,7 @@ function relativeTime(ms) {
 }
 
 function StatusDot({ status }) {
+  if (!status) return null;
   const color = status === "NEW" ? "#FB923C" : "#4ADE80";
   return (
     <span style={{
@@ -115,9 +121,10 @@ function DocPreview({ item }) {
   );
 }
 
-function ToolCard({ item, hovered, setHovered, compact }) {
+function ToolCard({ item, hovered, setHovered, variant }) {
   const Icon = item.icon;
   const isHovered = hovered === item.key;
+  const featured = variant === "featured";
   return (
     <div style={{ position: "relative" }}
       onMouseEnter={function () { setHovered(item.key); }}
@@ -126,46 +133,54 @@ function ToolCard({ item, hovered, setHovered, compact }) {
         style={{
           display: "block", textDecoration: "none", color: "inherit",
           background: isHovered ? "#181818" : "#141414",
-          border: "1px solid " + (isHovered ? "#F5F2E8" : "#2A2A2A"),
-          borderRadius: 6, padding: compact ? "12px 14px" : "16px 16px",
-          marginBottom: compact ? 0 : 12,
+          border: "1px solid " + (isHovered ? (featured ? "#F0C93A" : "#F5F2E8") : "#2A2A2A"),
+          borderRadius: 6, padding: featured ? "18px 18px" : "16px 16px",
+          marginBottom: featured ? 0 : 12,
           transition: "border-color 0.2s ease, transform 0.2s ease, background 0.2s ease",
           transform: isHovered ? "translateY(-3px)" : "translateY(0)",
         }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
-            width: compact ? 32 : 38, height: compact ? 32 : 38, borderRadius: 4,
+            width: featured ? 44 : 38, height: featured ? 44 : 38, borderRadius: 4,
             background: isHovered ? "#25201a" : "#1F1F1F",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
             transition: "background 0.2s ease, transform 0.2s ease",
             transform: isHovered ? "scale(1.06)" : "scale(1)",
           }}>
-            <Icon size={compact ? 15 : 17} color={isHovered ? "#F0C93A" : "#F5F2E8"} />
+            <Icon size={featured ? 20 : 17} color={isHovered ? "#F0C93A" : "#F5F2E8"} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: compact ? 13 : 14, fontWeight: 700 }}>{item.title}</span>
-              {!compact && <StatusDot status={item.status} />}
+              <span style={{ fontSize: featured ? 15 : 14, fontWeight: 700 }}>{item.title}</span>
+              <StatusDot status={item.status} />
             </div>
           </div>
-          <ArrowRight size={15} color={isHovered ? "#F5F2E8" : "#8A8A8A"}
-            style={{ transition: "transform 0.2s ease", transform: isHovered ? "translateX(3px)" : "translateX(0)" }} />
+          {!featured && (
+            <ArrowRight size={15} color={isHovered ? "#F5F2E8" : "#8A8A8A"}
+              style={{ transition: "transform 0.2s ease", transform: isHovered ? "translateX(3px)" : "translateX(0)" }} />
+          )}
         </div>
-        {!compact && (
-          <p style={{ fontSize: 12.5, color: isHovered ? "#B8B8B8" : "#8A8A8A", margin: "10px 0 0", lineHeight: 1.5, transition: "color 0.2s ease" }}>
-            {item.desc}
-          </p>
+        <p style={{ fontSize: featured ? 12.5 : 12.5, color: isHovered ? "#B8B8B8" : "#8A8A8A", margin: "10px 0 0", lineHeight: 1.5, transition: "color 0.2s ease" }}>
+          {featured ? item.benefit : item.desc}
+        </p>
+        {featured && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 5, marginTop: 12,
+            fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: isHovered ? "#F0C93A" : "#F5F2E8",
+            transition: "color 0.2s ease",
+          }}>
+            OPEN
+            <ArrowRight size={13} style={{ transition: "transform 0.2s ease", transform: isHovered ? "translateX(3px)" : "translateX(0)" }} />
+          </div>
         )}
       </a>
-      {!compact && (
-        <div className="pc-hub-preview" style={{
-          position: "absolute", top: 0, left: "100%", marginLeft: 14,
-          opacity: isHovered ? 1 : 0, transform: isHovered ? "translateX(0)" : "translateX(-6px)",
-          transition: "opacity 0.18s ease, transform 0.18s ease", pointerEvents: "none",
-        }}>
-          <DocPreview item={item} />
-        </div>
-      )}
+      <div className="pc-hub-preview" style={{
+        position: "absolute", top: 0, left: "100%", marginLeft: 14,
+        opacity: isHovered ? 1 : 0, transform: isHovered ? "translateX(0)" : "translateX(-6px)",
+        transition: "opacity 0.18s ease, transform 0.18s ease", pointerEvents: "none",
+      }}>
+        <DocPreview item={item} />
+      </div>
     </div>
   );
 }
@@ -218,10 +233,10 @@ export default function Hub() {
       <ToolBackgroundArt glyphs={["$", "#", "%", "="]} />
       <StampWrapper>
         <div style={{ width: 460, maxWidth: "100%", ...fontMono }}>
-          <p style={{ fontSize: 24, fontWeight: 700, color: "#F5F2E8", letterSpacing: 0.5, margin: "0 0 4px" }}>
+          <p style={{ fontSize: 28, fontWeight: 700, color: "#F5F2E8", letterSpacing: 0.5, margin: "0 0 6px" }}>
             PAPYRI
           </p>
-          <p style={{ fontSize: 12, color: "#8A8A8A", margin: "0 0 20px" }}>
+          <p style={{ fontSize: 13, color: "#8A8A8A", margin: "0 0 26px", lineHeight: 1.5 }}>
             receipts, invoices, and paperwork — generated instantly
           </p>
 
@@ -280,7 +295,7 @@ export default function Hub() {
               <p style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: 0.8, margin: "0 0 8px" }}>Popular Tools</p>
               <div className="pc-hub-popular-grid">
                 {popularItems.map(function (item) {
-                  return <ToolCard key={item.key} item={item} hovered={hovered} setHovered={setHovered} compact />;
+                  return <ToolCard key={item.key} item={item} hovered={hovered} setHovered={setHovered} variant="featured" />;
                 })}
               </div>
             </div>

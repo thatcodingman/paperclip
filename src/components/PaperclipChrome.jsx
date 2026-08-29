@@ -76,6 +76,66 @@ export function StampWrapper({ children }) {
   return <div className="pc-stamp" style={{ position: "relative", zIndex: 1 }}>{children}</div>;
 }
 
+// Numbered progress rail for the step-by-step generator flow (Business →
+// Items → Generate, etc). Shared across all 5 tools so the wizard looks
+// and behaves identically everywhere.
+export function WizardProgress({ steps, currentIndex }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 22, ...fontMono }}>
+      {steps.map(function (step, i) {
+        const done = i < currentIndex;
+        const active = i === currentIndex;
+        return (
+          <div key={step.id} style={{ display: "flex", alignItems: "center", flex: i === steps.length - 1 ? "0 0 auto" : 1 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 700,
+                background: active || done ? "#F5F2E8" : "#1A1A1A",
+                color: active || done ? "#0A0A0A" : "#666",
+                border: "1px solid " + (active || done ? "#F5F2E8" : "#333"),
+                transition: "all 0.2s ease",
+              }}>
+                {done ? "\u2713" : i + 1}
+              </div>
+              <span style={{ fontSize: 8.5, color: active ? "#F5F2E8" : "#666", marginTop: 4, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>
+                {step.label}
+              </span>
+            </div>
+            {i !== steps.length - 1 && (
+              <div style={{ flex: 1, height: 1, background: done ? "#F5F2E8" : "#2A2A2A", margin: "0 6px 14px", transition: "background 0.2s ease" }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Back / Continue nav for a wizard step. The last step renders neither —
+// its own action button (Print, Generate, etc) is the finishing move.
+export function WizardNav({ onBack, onNext, isFirst, isLast, nextLabel }) {
+  if (isFirst && isLast) return null;
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 4, marginBottom: 20 }}>
+      {!isFirst && (
+        <button onClick={onBack} style={{
+          flex: "0 0 auto", padding: "10px 16px", borderRadius: 4, border: "1px solid #333", background: "none",
+          color: "#8A8A8A", fontSize: 12, cursor: "pointer", ...fontMono }}>
+          &larr; Back
+        </button>
+      )}
+      {!isLast && (
+        <button onClick={onNext} style={{
+          flex: 1, padding: "10px 16px", borderRadius: 4, border: "none", background: "#F5F2E8",
+          color: "#0A0A0A", fontSize: 12, fontWeight: 700, cursor: "pointer", ...fontMono }}>
+          {nextLabel || "Continue \u2192"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Downloads the current profile as a JSON file the user can re-import later
 // or on another device.
 export function exportProfileFile(profile) {
