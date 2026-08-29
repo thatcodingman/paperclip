@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -13,6 +13,14 @@ const SIZES = {
   wide: { label: "Full Page", width: 420 },
 };
 const CATEGORIES = ["Travel", "Meals", "Supplies", "Software", "Lodging", "Other"];
+
+const ALL_STEPS = [
+  { id: "business", label: "Business" },
+  { id: "info", label: "Info" },
+  { id: "expenses", label: "Expenses" },
+  { id: "review", label: "Review" },
+  { id: "generate", label: "Generate" },
+];
 
 const PROFILE_KEY = "paperclip-profile-v1";
 const APPEARANCE_KEY = "paperclip-appearance-v1";
@@ -98,6 +106,11 @@ function ExpenseReportInner() {
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
+  const [stepIndex, setStepIndex] = useState(0);
+  function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
+  function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  const currentStepId = ALL_STEPS[stepIndex].id;
+
   useEffect(function () { document.title = "Expense Report — Papyri"; }, []);
 
   const tone = PAPER_TONES[appearance.tone];
@@ -173,6 +186,7 @@ function ExpenseReportInner() {
     setItems(s.items && s.items.length ? s.items : [makeItem(), makeItem()]);
     setReportNo(entry.docNo);
     setShowHistory(false);
+    setStepIndex(ALL_STEPS.length - 1);
   }
   const historyEntries = showHistory ? loadHistory("expense") : [];
 
@@ -187,7 +201,7 @@ function ExpenseReportInner() {
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["✈", "◈", "▦", "∑"]} />
       <StampWrapper>
-      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: size.width }}>
+      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: 400, maxWidth: "100%" }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
           textDecoration: "none", fontSize: 11, marginBottom: 14, ...fontMono }}>
           <ArrowLeft size={13} /> BACK
@@ -212,6 +226,8 @@ function ExpenseReportInner() {
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
           itemized expenses, grouped and totaled automatically
         </p>
+
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -289,6 +305,7 @@ function ExpenseReportInner() {
           </div>
         )}
 
+        {currentStepId === "business" && (<>
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: 0, letterSpacing: 0.5 }}>YOUR BUSINESS</p>
@@ -354,13 +371,15 @@ function ExpenseReportInner() {
             </div>
           )}
         </div>
+        </>)}
 
+        {currentStepId === "info" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>SUBMITTED BY</p>
         <input value={submitter} onChange={function (e) { setSubmitter(e.target.value); }} placeholder="Your name"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
             fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 10, ...fontMono }} />
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>PERIOD FROM</p>
             <input value={dateFrom} onChange={function (e) { setDateFrom(e.target.value); }} type="date" style={{
@@ -374,7 +393,9 @@ function ExpenseReportInner() {
               fontSize: 11, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
           </div>
         </div>
+        </>)}
 
+        {currentStepId === "expenses" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>EXPENSES</p>
         {items.map(function (it) {
           return (
@@ -405,18 +426,49 @@ function ExpenseReportInner() {
         <button onClick={addItem} style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%",
           background: "none", border: "1px dashed #333", borderRadius: 3, padding: "8px 0", color: "#8A8A8A",
-          fontSize: 11, cursor: "pointer", margin: "10px 0 16px", ...fontMono }}>
+          fontSize: 11, cursor: "pointer", margin: "10px 0 4px", ...fontMono }}>
           <Plus size={12} /> Add expense
         </button>
+        </>)}
 
+        {currentStepId === "review" && (<>
+        <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: "14px 16px", marginBottom: 20 }}>
+          {byCategory.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ ...fontMono, fontSize: 10, color: "#666", margin: "0 0 8px", letterSpacing: 0.5 }}>BY CATEGORY</p>
+              {byCategory.map(function (entry) {
+                return (
+                  <div key={entry[0]} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#CCC", marginBottom: 4, ...fontMono }}>
+                    <span>{entry[0]}</span><span>{fmtCurrency(entry[1], currency)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p style={{ ...fontMono, fontSize: 22, fontWeight: 700, color: "#F0C93A", margin: 0, paddingTop: byCategory.length ? 10 : 0, borderTop: byCategory.length ? "1px dashed #333" : "none" }}>
+            {fmtCurrency(grandTotal, currency)}
+          </p>
+          <p style={{ ...fontMono, fontSize: 10.5, color: "#666", margin: "2px 0 0" }}>Grand total</p>
+        </div>
+        </>)}
+
+        <WizardNav
+          onBack={goBack} onNext={goNext}
+          isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
+          nextLabel={currentStepId === "review" ? "Review & Generate \u2192" : "Continue \u2192"}
+        />
+
+        {currentStepId === "generate" && (
         <button onClick={handlePrint} style={{
           width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
+        )}
       </div>
 
+      {currentStepId === "generate" && (
       <div>
         <div className="pc-receipt" style={{
           width: size.width, background: tone.paper, color: ink, padding: "28px 22px 0", ...fontMono,
@@ -490,6 +542,7 @@ function ExpenseReportInner() {
         </div>
         <TornEdge paper={tone.paper} />
       </div>
+      )}
       </StampWrapper>
     </PaperclipBackdrop>
   );
