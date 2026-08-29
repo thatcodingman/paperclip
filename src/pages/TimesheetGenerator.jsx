@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -13,6 +13,15 @@ const SIZES = {
   wide: { label: "Full Page", width: 420 },
 };
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+const ALL_STEPS = [
+  { id: "business", label: "Business" },
+  { id: "employee", label: "Employee" },
+  { id: "hours", label: "Hours" },
+  { id: "pay", label: "Pay" },
+  { id: "generate", label: "Generate" },
+];
 
 const PROFILE_KEY = "paperclip-profile-v1";
 const APPEARANCE_KEY = "paperclip-appearance-v1";
@@ -99,6 +108,25 @@ function TimesheetGeneratorInner() {
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
+  const [stepIndex, setStepIndex] = useState(0);
+  function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
+  function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  const currentStepId = ALL_STEPS[stepIndex].id;
+
+  function applyQuickFill(hrsPerDay) {
+    setHours(function (prev) {
+      const next = Object.assign({}, prev);
+      WEEKDAYS.forEach(function (d) { next[d] = String(hrsPerDay); });
+      return next;
+    });
+  }
+  function copyLastWeek() {
+    const entries = loadHistory("timesheet");
+    if (entries.length && entries[0].state && entries[0].state.hours) {
+      setHours(entries[0].state.hours);
+    }
+  }
+
   useEffect(function () { document.title = "Timesheet Generator — Papyri"; }, []);
 
   const tone = PAPER_TONES[appearance.tone];
@@ -163,6 +191,7 @@ function TimesheetGeneratorInner() {
     setHours(s.hours || (function () { const init = {}; DAYS.forEach(function (d) { init[d] = ""; }); return init; })());
     setSheetNo(entry.docNo);
     setShowHistory(false);
+    setStepIndex(ALL_STEPS.length - 1);
   }
   const historyEntries = showHistory ? loadHistory("timesheet") : [];
 
@@ -177,7 +206,7 @@ function TimesheetGeneratorInner() {
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["◷", "▤", ":", "○"]} />
       <StampWrapper>
-      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: size.width }}>
+      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: 400, maxWidth: "100%" }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
           textDecoration: "none", fontSize: 11, marginBottom: 14, ...fontMono }}>
           <ArrowLeft size={13} /> BACK
@@ -202,6 +231,8 @@ function TimesheetGeneratorInner() {
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
           weekly hours, totaled and printable
         </p>
+
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -271,6 +302,7 @@ function TimesheetGeneratorInner() {
           </div>
         )}
 
+        {currentStepId === "business" && (<>
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: 0, letterSpacing: 0.5 }}>YOUR BUSINESS</p>
@@ -339,47 +371,93 @@ function TimesheetGeneratorInner() {
             </div>
           )}
         </div>
+        </>)}
 
+        {currentStepId === "employee" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>EMPLOYEE</p>
         <input value={employee} onChange={function (e) { setEmployee(e.target.value); }} placeholder="Employee name"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
             fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 10, ...fontMono }} />
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>WEEK OF</p>
-            <input value={weekStart} onChange={function (e) { setWeekStart(e.target.value); }} type="date" style={{
-              width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-              fontSize: 12, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>HOURLY RATE $ (optional)</p>
-            <input value={hourlyRate} onChange={function (e) { setHourlyRate(sanitizeNumericInput(e.target.value)); }} style={{
-              width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-              fontSize: 12, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
-          </div>
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>WEEK OF</p>
+        <input value={weekStart} onChange={function (e) { setWeekStart(e.target.value); }} type="date" style={{
+          width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
+          fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, ...fontMono }} />
+        </>)}
+
+        {currentStepId === "hours" && (<>
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 8px", letterSpacing: 0.5 }}>QUICK FILL (Mon\u2013Fri)</p>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+          <button onClick={function () { applyQuickFill(8); }} style={{
+            padding: "6px 10px", fontSize: 10.5, borderRadius: 3, cursor: "pointer", ...fontMono,
+            background: "#1A1A1A", color: "#8A8A8A", border: "1px solid #333" }}>8h \u00d7 5 days</button>
+          <button onClick={function () { applyQuickFill(7.5); }} style={{
+            padding: "6px 10px", fontSize: 10.5, borderRadius: 3, cursor: "pointer", ...fontMono,
+            background: "#1A1A1A", color: "#8A8A8A", border: "1px solid #333" }}>7.5h \u00d7 5 days</button>
+          <button onClick={function () { applyQuickFill(10); }} style={{
+            padding: "6px 10px", fontSize: 10.5, borderRadius: 3, cursor: "pointer", ...fontMono,
+            background: "#1A1A1A", color: "#8A8A8A", border: "1px solid #333" }}>10h \u00d7 5 days</button>
+          <button onClick={copyLastWeek} style={{
+            padding: "6px 10px", fontSize: 10.5, borderRadius: 3, cursor: "pointer", ...fontMono,
+            background: "#1A1A1A", color: "#8A8A8A", border: "1px solid #333" }}>Copy last week</button>
         </div>
 
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>HOURS PER DAY</p>
         {DAYS.map(function (day) {
           return (
-            <div key={day} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ flex: 1, fontSize: 11.5, color: "#CCC", ...fontMono }}>{day}</span>
-              <input value={hours[day]} onChange={function (e) { updateHours(day, e.target.value); }}
-                placeholder="0" style={{ width: 70, background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3,
-                  color: "#F5F2E8", fontSize: 12, padding: "6px 8px", textAlign: "center", boxSizing: "border-box", ...fontMono }} />
+            <div key={day} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6,
+              background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: "8px 10px" }}>
+              <span style={{ fontSize: 11.5, color: "#CCC", ...fontMono, fontWeight: 600 }}>{day.toUpperCase()}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input value={hours[day]} onChange={function (e) { updateHours(day, e.target.value); }}
+                  placeholder="0" style={{ width: 60, background: "#0A0A0A", border: "1px solid #333", borderRadius: 3,
+                    color: "#F5F2E8", fontSize: 12, padding: "6px 8px", textAlign: "center", boxSizing: "border-box", ...fontMono }} />
+                <span style={{ fontSize: 10, color: "#666", ...fontMono }}>hrs</span>
+              </div>
             </div>
           );
         })}
+        </>)}
 
+        {currentStepId === "pay" && (<>
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>HOURLY RATE $ (optional)</p>
+        <input value={hourlyRate} onChange={function (e) { setHourlyRate(sanitizeNumericInput(e.target.value)); }} style={{
+          width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
+          fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 16, ...fontMono }} />
+
+        <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: "14px 16px", marginBottom: 20 }}>
+          <p style={{ ...fontMono, fontSize: 22, fontWeight: 700, color: "#F5F2E8", margin: "0 0 2px" }}>
+            {totalHours.toFixed(1)} HOURS
+          </p>
+          {rateNum > 0 ? (
+            <>
+              <p style={{ ...fontMono, fontSize: 20, fontWeight: 700, color: "#F0C93A", margin: "0 0 2px" }}>{fmt(totalPay)}</p>
+              <p style={{ ...fontMono, fontSize: 10.5, color: "#666", margin: 0 }}>{totalHours.toFixed(1)} hrs \u00d7 ${rateNum}/hr</p>
+            </>
+          ) : (
+            <p style={{ ...fontMono, fontSize: 10.5, color: "#666", margin: 0 }}>Add an hourly rate to calculate total pay.</p>
+          )}
+        </div>
+        </>)}
+
+        <WizardNav
+          onBack={goBack} onNext={goNext}
+          isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
+          nextLabel={currentStepId === "pay" ? "Review & Generate \u2192" : "Continue \u2192"}
+        />
+
+        {currentStepId === "generate" && (
         <button onClick={handlePrint} style={{
           width: "100%", marginTop: 14, padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
+        )}
       </div>
 
+      {currentStepId === "generate" && (
       <div>
         <div className="pc-receipt" style={{
           width: size.width, background: tone.paper, color: ink, padding: "28px 22px 0", ...fontMono,
@@ -444,6 +522,7 @@ function TimesheetGeneratorInner() {
         </div>
         <TornEdge paper={tone.paper} />
       </div>
+      )}
       </StampWrapper>
     </PaperclipBackdrop>
   );
