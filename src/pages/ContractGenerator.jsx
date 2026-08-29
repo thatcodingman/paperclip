@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Component } from "react";
 import { Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -15,6 +15,14 @@ const SIZES = {
 
 const PROFILE_KEY = "paperclip-profile-v1";
 const APPEARANCE_KEY = "paperclip-appearance-v1";
+
+const ALL_STEPS = [
+  { id: "business", label: "Business" },
+  { id: "parties", label: "Parties" },
+  { id: "scope", label: "Scope" },
+  { id: "clauses", label: "Clauses" },
+  { id: "generate", label: "Generate" },
+];
 
 function loadProfile() {
   try { const raw = window.localStorage.getItem(PROFILE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -108,6 +116,11 @@ function ContractGeneratorInner() {
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
+  const [stepIndex, setStepIndex] = useState(0);
+  function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
+  function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  const currentStepId = ALL_STEPS[stepIndex].id;
+
   useEffect(function () { document.title = "Contract Generator — Papyri"; }, []);
 
   const tone = PAPER_TONES[appearance.tone];
@@ -169,6 +182,7 @@ function ContractGeneratorInner() {
     setActiveClauses(s.activeClauses || { confidentiality: true, termination: true, payment: true, liability: false, governingLaw: false });
     setDocNo(entry.docNo);
     setShowHistory(false);
+    setStepIndex(ALL_STEPS.length - 1);
   }
   const historyEntries = showHistory ? loadHistory("contract") : [];
 
@@ -186,7 +200,7 @@ function ContractGeneratorInner() {
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["§", "¶", "©", "✓"]} />
       <StampWrapper>
-      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: size.width }}>
+      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: 400, maxWidth: "100%" }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
           textDecoration: "none", fontSize: 11, marginBottom: 14, ...fontMono }}>
           <ArrowLeft size={13} /> BACK
@@ -211,6 +225,8 @@ function ContractGeneratorInner() {
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
           a simple agreement — toggle only the clauses you need
         </p>
+
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -280,6 +296,7 @@ function ContractGeneratorInner() {
           </div>
         )}
 
+        {currentStepId === "business" && (<>
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: 0, letterSpacing: 0.5 }}>PARTY A (YOU)</p>
@@ -348,7 +365,9 @@ function ContractGeneratorInner() {
             </div>
           )}
         </div>
+        </>)}
 
+        {currentStepId === "parties" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>PARTY B</p>
         <input value={partyB} onChange={function (e) { setPartyB(e.target.value); }} placeholder="Other party's name"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
@@ -357,14 +376,18 @@ function ContractGeneratorInner() {
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>EFFECTIVE DATE</p>
         <input value={effectiveDate} onChange={function (e) { setEffectiveDate(e.target.value); }} type="date"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 10, ...fontMono }} />
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, ...fontMono }} />
+        </>)}
 
+        {currentStepId === "scope" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>SCOPE OF WORK</p>
-        <textarea value={scope} onChange={function (e) { setScope(e.target.value); }} rows={3}
+        <textarea value={scope} onChange={function (e) { setScope(e.target.value); }} rows={6}
           placeholder="Briefly describe the work or service..."
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 16, resize: "vertical", ...fontMono }} />
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, resize: "vertical", ...fontMono }} />
+        </>)}
 
+        {currentStepId === "clauses" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 8px", letterSpacing: 0.5 }}>CLAUSES TO INCLUDE</p>
         {Object.entries(CLAUSES).map(function (entry) {
           const key = entry[0]; const c = entry[1];
@@ -406,7 +429,15 @@ function ContractGeneratorInner() {
                 fontSize: 12, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
           </div>
         )}
+        </>)}
 
+        <WizardNav
+          onBack={goBack} onNext={goNext}
+          isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
+          nextLabel={currentStepId === "clauses" ? "Review & Generate \u2192" : "Continue \u2192"}
+        />
+
+        {currentStepId === "generate" && (<>
         <button onClick={handlePrint} style={{
           width: "100%", marginTop: 16, padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
@@ -417,8 +448,10 @@ function ContractGeneratorInner() {
         <p style={{ fontSize: 9, color: "#666", textAlign: "center", marginTop: 14, lineHeight: 1.5, ...fontMono }}>
           Not a substitute for legal advice. For anything high-stakes, have a lawyer review it.
         </p>
+        </>)}
       </div>
 
+      {currentStepId === "generate" && (
       <div>
         <div className="pc-receipt" style={{
           width: size.width, background: tone.paper, color: ink, padding: "28px 22px 0", ...fontMono,
@@ -464,6 +497,7 @@ function ContractGeneratorInner() {
         </div>
         <TornEdge paper={tone.paper} />
       </div>
+      )}
       </StampWrapper>
     </PaperclipBackdrop>
   );
