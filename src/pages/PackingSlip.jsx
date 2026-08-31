@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, StartAnotherButton, saveDraft, loadDraft, clearDraft, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -15,6 +15,13 @@ const SIZES = {
 
 const PROFILE_KEY = "paperclip-profile-v1";
 const APPEARANCE_KEY = "paperclip-appearance-v1";
+
+const ALL_STEPS = [
+  { id: "business", label: "Business" },
+  { id: "order", label: "Order" },
+  { id: "items", label: "Items" },
+  { id: "generate", label: "Generate" },
+];
 
 function loadProfile() {
   try { const raw = window.localStorage.getItem(PROFILE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -97,6 +104,31 @@ function PackingSlipInner() {
   const logoInputRef = useRef(null);
   const importInputRef = useRef(null);
 
+  const [stepIndex, setStepIndex] = useState(0);
+  const draftLoaded = useRef(false);
+
+  useEffect(function () {
+    const d = loadDraft("packing");
+    if (d) {
+      setItems(d.items && d.items.length ? d.items : [makeItem(), makeItem()]);
+      setShipTo(d.shipTo || "");
+      setOrderRef(d.orderRef || "");
+      setNotes(d.notes || "");
+      setStepIndex(Math.min(d.stepIndex || 0, ALL_STEPS.length - 1));
+    }
+    draftLoaded.current = true;
+  }, []);
+
+  useEffect(function () {
+    if (!draftLoaded.current) return;
+    saveDraft("packing", { items, shipTo, orderRef, notes, stepIndex });
+  }, [items, shipTo, orderRef, notes, stepIndex]);
+
+  function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
+  function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  function jumpTo(i) { setStepIndex(i); }
+  const currentStepId = ALL_STEPS[stepIndex].id;
+
   useEffect(function () { document.title = "Packing Slip — Papyri"; }, []);
 
   const tone = PAPER_TONES[appearance.tone];
@@ -111,6 +143,29 @@ function PackingSlipInner() {
   const totalItems = useMemo(function () {
     return items.reduce(function (sum, it) { return sum + (Number(it.qty) || 0); }, 0);
   }, [items]);
+
+  const hasValidItem = items.some(function (it) { return it.desc.trim(); });
+  const blockedByStep = {
+    business: !profile.name.trim(),
+    order: !shipTo.trim(),
+    items: !hasValidItem,
+    generate: false,
+  };
+  const blockedMessage = {
+    business: "Add a business name to continue.",
+    order: "Add a ship-to address to continue.",
+    items: "Add at least one item to continue.",
+  };
+
+  function resetAll() {
+    setItems([makeItem(), makeItem()]);
+    setShipTo("");
+    setOrderRef("");
+    setNotes("");
+    setSlipNo(nextDocNumber("packing", "SLIP-"));
+    clearDraft("packing");
+    setStepIndex(0);
+  }
 
   function persistProfile(next) {
     try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch (e) {}
@@ -151,6 +206,7 @@ function PackingSlipInner() {
     saveToHistory("packing", slipNo, (shipTo ? shipTo.split("\n")[0] : "Untitled") + " — " + totalItems + " items", {
       items: items, shipTo: shipTo, orderRef: orderRef, notes: notes,
     });
+    clearDraft("packing");
     window.print();
   }
   function loadHistoryEntry(entry) {
@@ -161,6 +217,7 @@ function PackingSlipInner() {
     setNotes(s.notes || "");
     setSlipNo(entry.docNo);
     setShowHistory(false);
+    setStepIndex(ALL_STEPS.length - 1);
   }
   const historyEntries = showHistory ? loadHistory("packing") : [];
 
@@ -175,7 +232,7 @@ function PackingSlipInner() {
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["▣", "→", "◫", "✓"]} />
       <StampWrapper>
-      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: size.width }}>
+      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: 400, maxWidth: "100%" }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
           textDecoration: "none", fontSize: 11, marginBottom: 14, ...fontMono }}>
           <ArrowLeft size={13} /> BACK
@@ -200,6 +257,8 @@ function PackingSlipInner() {
         <p style={{ ...fontMono, fontSize: 11, color: "#8A8A8A", margin: "0 0 16px" }}>
           what's in the box, no pricing
         </p>
+
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} onStepClick={jumpTo} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -269,6 +328,7 @@ function PackingSlipInner() {
           </div>
         )}
 
+        {currentStepId === "business" && (<>
         <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: 0, letterSpacing: 0.5 }}>YOUR BUSINESS</p>
@@ -334,7 +394,9 @@ function PackingSlipInner() {
             </div>
           )}
         </div>
+        </>)}
 
+        {currentStepId === "order" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>SHIP TO</p>
         <textarea value={shipTo} onChange={function (e) { setShipTo(e.target.value); }} rows={2}
           placeholder="Recipient name and address"
@@ -344,8 +406,16 @@ function PackingSlipInner() {
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>ORDER REFERENCE (optional)</p>
         <input value={orderRef} onChange={function (e) { setOrderRef(e.target.value); }} placeholder="Order # or PO #"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 16, ...fontMono }} />
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 10, ...fontMono }} />
 
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>NOTES (optional)</p>
+        <textarea value={notes} onChange={function (e) { setNotes(e.target.value); }} rows={2}
+          placeholder="Handling instructions, etc."
+          style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
+            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, resize: "vertical", ...fontMono }} />
+        </>)}
+
+        {currentStepId === "items" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px", letterSpacing: 0.5 }}>ITEMS</p>
         {items.map(function (it) {
           return (
@@ -367,24 +437,31 @@ function PackingSlipInner() {
         <button onClick={addItem} style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%",
           background: "none", border: "1px dashed #333", borderRadius: 3, padding: "8px 0", color: "#8A8A8A",
-          fontSize: 11, cursor: "pointer", margin: "10px 0 16px", ...fontMono }}>
+          fontSize: 11, cursor: "pointer", margin: "10px 0 4px", ...fontMono }}>
           <Plus size={12} /> Add item
         </button>
+        </>)}
 
-        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>NOTES (optional)</p>
-        <textarea value={notes} onChange={function (e) { setNotes(e.target.value); }} rows={2}
-          placeholder="Handling instructions, etc."
-          style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-            fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, resize: "vertical", ...fontMono }} />
+        <WizardNav
+          onBack={goBack} onNext={goNext}
+          isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
+          nextLabel={currentStepId === "items" ? "Review & Generate \u2192" : "Continue \u2192"}
+          blocked={blockedByStep[currentStepId]}
+          blockedMessage={blockedMessage[currentStepId]}
+        />
 
+        {currentStepId === "generate" && (<>
         <button onClick={handlePrint} style={{
           width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
+        <StartAnotherButton onClick={resetAll} />
+        </>)}
       </div>
 
+      {currentStepId === "generate" && (
       <div>
         <div className="pc-receipt" style={{
           width: size.width, background: tone.paper, color: ink, padding: "28px 22px 0", ...fontMono,
@@ -452,6 +529,7 @@ function PackingSlipInner() {
         </div>
         <TornEdge paper={tone.paper} />
       </div>
+      )}
       </StampWrapper>
     </PaperclipBackdrop>
   );
