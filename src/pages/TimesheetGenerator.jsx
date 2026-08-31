@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, StartAnotherButton, saveDraft, loadDraft, clearDraft, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -19,7 +19,6 @@ const ALL_STEPS = [
   { id: "business", label: "Business" },
   { id: "employee", label: "Employee" },
   { id: "hours", label: "Hours" },
-  { id: "pay", label: "Pay" },
   { id: "generate", label: "Generate" },
 ];
 
@@ -109,8 +108,28 @@ function TimesheetGeneratorInner() {
   const importInputRef = useRef(null);
 
   const [stepIndex, setStepIndex] = useState(0);
+  const draftLoaded = useRef(false);
+
+  useEffect(function () {
+    const d = loadDraft("timesheet");
+    if (d) {
+      setEmployee(d.employee || "");
+      setWeekStart(d.weekStart || "");
+      setHourlyRate(d.hourlyRate || "");
+      if (d.hours) setHours(d.hours);
+      setStepIndex(Math.min(d.stepIndex || 0, ALL_STEPS.length - 1));
+    }
+    draftLoaded.current = true;
+  }, []);
+
+  useEffect(function () {
+    if (!draftLoaded.current) return;
+    saveDraft("timesheet", { employee, weekStart, hourlyRate, hours, stepIndex });
+  }, [employee, weekStart, hourlyRate, hours, stepIndex]);
+
   function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
   function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  function jumpTo(i) { setStepIndex(i); }
   const currentStepId = ALL_STEPS[stepIndex].id;
 
   function applyQuickFill(hrsPerDay) {
@@ -141,6 +160,30 @@ function TimesheetGeneratorInner() {
   }, [hours]);
   const rateNum = Number(hourlyRate) || 0;
   const totalPay = totalHours * rateNum;
+
+  const blockedByStep = {
+    business: !profile.name.trim(),
+    employee: !employee.trim(),
+    hours: totalHours <= 0,
+    generate: false,
+  };
+  const blockedMessage = {
+    business: "Add a business name to continue.",
+    employee: "Add the employee's name to continue.",
+    hours: "Add at least some hours worked to continue.",
+  };
+
+  function resetAll() {
+    setEmployee("");
+    setWeekStart("");
+    setHourlyRate("");
+    const init = {};
+    DAYS.forEach(function (d) { init[d] = ""; });
+    setHours(init);
+    setSheetNo(nextDocNumber("timesheet", "TIME-"));
+    clearDraft("timesheet");
+    setStepIndex(0);
+  }
 
   function persistProfile(next) {
     try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch (e) {}
@@ -181,6 +224,7 @@ function TimesheetGeneratorInner() {
     saveToHistory("timesheet", sheetNo, (employee || "Untitled") + " — " + totalHours.toFixed(1) + "h", {
       employee: employee, weekStart: weekStart, hourlyRate: hourlyRate, hours: hours,
     });
+    clearDraft("timesheet");
     window.print();
   }
   function loadHistoryEntry(entry) {
@@ -232,7 +276,7 @@ function TimesheetGeneratorInner() {
           weekly hours, totaled and printable
         </p>
 
-        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} />
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} onStepClick={jumpTo} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -418,15 +462,23 @@ function TimesheetGeneratorInner() {
             </div>
           );
         })}
-        </>)}
 
-        {currentStepId === "pay" && (<>
-        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 4px" }}>HOURLY RATE $ (optional)</p>
+        <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "16px 0 4px" }}>HOURLY RATE $ (optional)</p>
         <input value={hourlyRate} onChange={function (e) { setHourlyRate(sanitizeNumericInput(e.target.value)); }} style={{
           width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
-          fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 16, ...fontMono }} />
+          fontSize: 12, padding: "7px 8px", boxSizing: "border-box", ...fontMono }} />
+        </>)}
 
-        <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: "14px 16px", marginBottom: 20 }}>
+        <WizardNav
+          onBack={goBack} onNext={goNext}
+          isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
+          nextLabel={currentStepId === "hours" ? "Review & Generate \u2192" : "Continue \u2192"}
+          blocked={blockedByStep[currentStepId]}
+          blockedMessage={blockedMessage[currentStepId]}
+        />
+
+        {currentStepId === "generate" && (<>
+        <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: "14px 16px", marginBottom: 16 }}>
           <p style={{ ...fontMono, fontSize: 22, fontWeight: 700, color: "#F5F2E8", margin: "0 0 2px" }}>
             {totalHours.toFixed(1)} HOURS
           </p>
@@ -436,25 +488,17 @@ function TimesheetGeneratorInner() {
               <p style={{ ...fontMono, fontSize: 10.5, color: "#666", margin: 0 }}>{totalHours.toFixed(1)} hrs \u00d7 ${rateNum}/hr</p>
             </>
           ) : (
-            <p style={{ ...fontMono, fontSize: 10.5, color: "#666", margin: 0 }}>Add an hourly rate to calculate total pay.</p>
+            <p style={{ ...fontMono, fontSize: 10.5, color: "#666", margin: 0 }}>No hourly rate set — showing hours only.</p>
           )}
         </div>
-        </>)}
-
-        <WizardNav
-          onBack={goBack} onNext={goNext}
-          isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
-          nextLabel={currentStepId === "pay" ? "Review & Generate \u2192" : "Continue \u2192"}
-        />
-
-        {currentStepId === "generate" && (
         <button onClick={handlePrint} style={{
           width: "100%", marginTop: 14, padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
-        )}
+        <StartAnotherButton onClick={resetAll} />
+        </>)}
       </div>
 
       {currentStepId === "generate" && (
