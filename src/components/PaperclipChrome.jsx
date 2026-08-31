@@ -182,7 +182,7 @@ export function StartAnotherButton({ onClick }) {
     <button onClick={onClick} style={{
       width: "100%", marginTop: 8, padding: "10px 0", borderRadius: 4, border: "1px solid #333", background: "none",
       color: "#8A8A8A", fontSize: 12, cursor: "pointer", ...fontMono }}>
-      Start another \u2192
+      Start another →
     </button>
   );
 }

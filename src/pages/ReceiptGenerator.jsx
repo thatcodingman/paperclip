@@ -269,7 +269,7 @@ function ReceiptGeneratorInner() {
       <PaperclipStyles />
       <ToolBackgroundArt glyphs={["$", "¢", "#", "%"]} />
       <StampWrapper>
-      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: 400, maxWidth: "100%" }}>
+      <div className={"pc-no-print" + (appearance.uiLight ? " pc-ui-light" : "")} style={{ width: currentStepId === "generate" ? Math.max(size.width, 320) : 400, maxWidth: "100%" }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#8A8A8A",
           textDecoration: "none", fontSize: 11, marginBottom: 14, ...fontMono }}>
           <ArrowLeft size={13} /> BACK
@@ -532,6 +532,7 @@ function ReceiptGeneratorInner() {
             fontSize: 12, padding: "7px 8px", boxSizing: "border-box", marginBottom: 20, ...fontMono }} />
         </>)}
 
+        {currentStepId !== "generate" && (
         <WizardNav
           onBack={goBack} onNext={goNext}
           isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
@@ -539,23 +540,22 @@ function ReceiptGeneratorInner() {
           blocked={blockedByStep[currentStepId]}
           blockedMessage={blockedMessage[currentStepId]}
         />
-
-        {currentStepId === "generate" && (<>
-        <button onClick={handlePrint} style={{
-          width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
-          fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          gap: 6, ...fontMono }}>
-          <Printer size={14} /> Print / Save as PDF
-        </button>
-        <StartAnotherButton onClick={resetAll} />
-        </>)}
+        )}
       </div>
 
       {currentStepId === "generate" && (
-      <div>
+      <div style={{ width: Math.max(size.width, 320), maxWidth: "100%", textAlign: "center" }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6, background: "#141414", border: "1px solid #2A2A2A",
+          borderRadius: 20, padding: "6px 14px", marginBottom: 16, ...fontMono }}>
+          <Check size={12} color="#4ADE80" />
+          <span style={{ fontSize: 10.5, color: "#4ADE80", fontWeight: 700, letterSpacing: 0.5 }}>RECEIPT READY</span>
+        </div>
+
         <div className="pc-receipt" style={{
           width: size.width, background: tone.paper, color: ink, padding: "28px 22px 0", ...fontMono,
           boxShadow: "0 10px 40px rgba(0,0,0,0.5)", transition: "width 0.2s ease, background 0.2s ease",
+          textAlign: "left", margin: "0 auto",
         }}>
           <div style={{ textAlign: "center", marginBottom: 14 }}>
             {profile.logo && <img src={profile.logo} alt="Logo" style={{ width: 44, height: 44, borderRadius: 4, objectFit: "cover", margin: "0 auto 8px" }} />}
@@ -634,6 +634,21 @@ function ReceiptGeneratorInner() {
           </div>
         </div>
         <TornEdge paper={tone.paper} />
+
+        <div style={{ marginTop: 18, textAlign: "left" }}>
+          <button onClick={handlePrint} style={{
+            width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
+            fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, ...fontMono }}>
+            <Printer size={14} /> Print / Save as PDF
+          </button>
+          <StartAnotherButton onClick={resetAll} />
+          <button onClick={goBack} style={{
+            width: "100%", marginTop: 8, padding: "8px 0", background: "none", border: "none",
+            color: "#666", fontSize: 11, cursor: "pointer", ...fontMono }}>
+            &larr; Edit details
+          </button>
+        </div>
       </div>
       )}
       </StampWrapper>
