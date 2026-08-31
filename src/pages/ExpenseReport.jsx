@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Component } from "react";
 import { Plus, X, Printer, Save, Edit2, Check, Settings, ArrowLeft, Upload, Download, Image, History, RotateCcw } from "lucide-react";
-import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
+import { ink, sub, stamp, bg, fontMono, PaperclipFonts, PaperclipStyles, PaperclipBackdrop, ToolBackgroundArt, StampWrapper, PaperclipStructuredData, WizardProgress, WizardNav, StartAnotherButton, saveDraft, loadDraft, clearDraft, exportProfileFile, readProfileFile, readLogoFile, nextDocNumber, DocumentQR, CURRENCIES, fmtCurrency, saveToHistory, loadHistory } from "../components/PaperclipChrome";
 
 const PAPER_TONES = {
   cream: { label: "Cream", paper: "#FFFDF6", line: "#D8D4C8" },
@@ -16,7 +16,6 @@ const CATEGORIES = ["Travel", "Meals", "Supplies", "Software", "Lodging", "Other
 
 const ALL_STEPS = [
   { id: "business", label: "Business" },
-  { id: "info", label: "Info" },
   { id: "expenses", label: "Expenses" },
   { id: "review", label: "Review" },
   { id: "generate", label: "Generate" },
@@ -107,8 +106,28 @@ function ExpenseReportInner() {
   const importInputRef = useRef(null);
 
   const [stepIndex, setStepIndex] = useState(0);
+  const draftLoaded = useRef(false);
+
+  useEffect(function () {
+    const d = loadDraft("expense");
+    if (d) {
+      setSubmitter(d.submitter || "");
+      setDateFrom(d.dateFrom || "");
+      setDateTo(d.dateTo || "");
+      setItems(d.items && d.items.length ? d.items : [makeItem(), makeItem()]);
+      setStepIndex(Math.min(d.stepIndex || 0, ALL_STEPS.length - 1));
+    }
+    draftLoaded.current = true;
+  }, []);
+
+  useEffect(function () {
+    if (!draftLoaded.current) return;
+    saveDraft("expense", { submitter, dateFrom, dateTo, items, stepIndex });
+  }, [submitter, dateFrom, dateTo, items, stepIndex]);
+
   function goNext() { setStepIndex(function (i) { return Math.min(i + 1, ALL_STEPS.length - 1); }); }
   function goBack() { setStepIndex(function (i) { return Math.max(i - 1, 0); }); }
+  function jumpTo(i) { setStepIndex(i); }
   const currentStepId = ALL_STEPS[stepIndex].id;
 
   useEffect(function () { document.title = "Expense Report — Papyri"; }, []);
@@ -136,6 +155,28 @@ function ExpenseReportInner() {
     });
     return Object.entries(totals).sort(function (a, b) { return b[1] - a[1]; });
   }, [items]);
+
+  const hasValidExpense = items.some(function (it) { return it.desc.trim() && it.amount; });
+  const blockedByStep = {
+    business: !profile.name.trim(),
+    expenses: !hasValidExpense,
+    review: false,
+    generate: false,
+  };
+  const blockedMessage = {
+    business: "Add a business name to continue.",
+    expenses: "Add at least one expense with a description and amount.",
+  };
+
+  function resetAll() {
+    setSubmitter("");
+    setDateFrom("");
+    setDateTo("");
+    setItems([makeItem(), makeItem()]);
+    setReportNo(nextDocNumber("expense", "EXP-"));
+    clearDraft("expense");
+    setStepIndex(0);
+  }
 
   function persistProfile(next) {
     try { window.localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch (e) {}
@@ -176,6 +217,7 @@ function ExpenseReportInner() {
     saveToHistory("expense", reportNo, (submitter || "Untitled") + " — " + fmtCurrency(grandTotal, currency), {
       submitter: submitter, dateFrom: dateFrom, dateTo: dateTo, items: items,
     });
+    clearDraft("expense");
     window.print();
   }
   function loadHistoryEntry(entry) {
@@ -227,7 +269,7 @@ function ExpenseReportInner() {
           itemized expenses, grouped and totaled automatically
         </p>
 
-        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} />
+        <WizardProgress steps={ALL_STEPS} currentIndex={stepIndex} onStepClick={jumpTo} />
 
         {showHistory && (
           <div style={{ background: "#141414", border: "1px solid #2A2A2A", borderRadius: 4, padding: 12, marginBottom: 16 }}>
@@ -371,9 +413,7 @@ function ExpenseReportInner() {
             </div>
           )}
         </div>
-        </>)}
 
-        {currentStepId === "info" && (<>
         <p style={{ ...fontMono, fontSize: 10, color: "#8A8A8A", margin: "0 0 6px" }}>SUBMITTED BY</p>
         <input value={submitter} onChange={function (e) { setSubmitter(e.target.value); }} placeholder="Your name"
           style={{ width: "100%", background: "#141414", border: "1px solid #2A2A2A", borderRadius: 3, color: "#F5F2E8",
@@ -456,16 +496,19 @@ function ExpenseReportInner() {
           onBack={goBack} onNext={goNext}
           isFirst={stepIndex === 0} isLast={currentStepId === "generate"}
           nextLabel={currentStepId === "review" ? "Review & Generate \u2192" : "Continue \u2192"}
+          blocked={blockedByStep[currentStepId]}
+          blockedMessage={blockedMessage[currentStepId]}
         />
 
-        {currentStepId === "generate" && (
+        {currentStepId === "generate" && (<>
         <button onClick={handlePrint} style={{
           width: "100%", padding: "12px 0", borderRadius: 4, border: "none", background: "#FFFDF6", color: ink,
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           gap: 6, ...fontMono }}>
           <Printer size={14} /> Print / Save as PDF
         </button>
-        )}
+        <StartAnotherButton onClick={resetAll} />
+        </>)}
       </div>
 
       {currentStepId === "generate" && (
